@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FlowGrid — Field Units</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #050a0f; --surface: #0d1721; --surface2: #111f2e;
+      --border: #1a2d3f; --border2: #243d54;
+      --accent: #00d4ff; --accent2: #ff6b35; --accent3: #00ff88; --accent4: #ffdd57;
+      --text: #e8f4f8; --muted: #4a7a96; --danger: #ff3366;
+      --sidebar-w: 240px;
+    }
+    body { font-family: 'Instrument Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; overflow-x: hidden; }
+    body::before { content: ''; position: fixed; inset: 0; z-index: -1; background: radial-gradient(ellipse 600px 400px at 80% 0%, rgba(0,212,255,0.04), transparent), radial-gradient(ellipse 500px 400px at 10% 100%, rgba(0,255,136,0.03), transparent), var(--bg); }
+
+    /* SIDEBAR */
+    .sidebar { width: var(--sidebar-w); min-height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; overflow: hidden; }
+    .sidebar::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 200px; background: radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.08), transparent 70%); pointer-events: none; }
+    .sidebar-logo { padding: 24px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--accent3)); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-icon svg { width: 20px; height: 20px; stroke: #030810; }
+    .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; background: linear-gradient(90deg, var(--accent), var(--accent3)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .logo-version { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 2px; }
+    .nav-section { padding: 20px 12px 8px; }
+    .nav-section-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); padding: 0 8px; margin-bottom: 6px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: all 0.2s; margin-bottom: 2px; position: relative; color: var(--muted); font-size: 14px; text-decoration: none; border: 1px solid transparent; }
+    .nav-item:hover { background: rgba(0,212,255,0.05); color: var(--text); border-color: var(--border); }
+    .nav-item.active { background: linear-gradient(135deg, rgba(0,212,255,0.12), rgba(0,255,136,0.05)); color: var(--accent); border-color: rgba(0,212,255,0.2); }
+    .nav-item.active::before { content: ''; position: absolute; left: -12px; width: 3px; height: 60%; top: 20%; background: var(--accent); border-radius: 0 2px 2px 0; }
+    .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--danger); color: white; font-size: 10px; font-family: 'DM Mono', monospace; padding: 1px 6px; border-radius: 10px; }
+    .nav-badge.yellow { background: var(--accent4); color: #030810; }
+    .nav-badge.green { background: var(--accent3); color: #030810; }
+    .nav-badge.cyan { background: var(--accent); color: #030810; }
+    .sidebar-footer { margin-top: auto; border-top: 1px solid var(--border); padding: 16px 12px; }
+    .user-card { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; cursor: pointer; }
+    .avatar { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #006d8a, #00d4ff); display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: #030810; flex-shrink: 0; }
+    .user-info { flex: 1; }
+    .user-name { font-size: 13px; font-weight: 600; }
+    .user-role { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); }
+
+    /* MAIN */
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+    .topbar { height: 64px; background: rgba(5,10,15,0.8); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 28px; gap: 16px; position: sticky; top: 0; z-index: 50; }
+    .topbar-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; }
+    .topbar-sub { font-size: 13px; color: var(--muted); margin-left: 4px; }
+    .topbar-spacer { flex: 1; }
+    .live-badge { display: flex; align-items: center; gap: 6px; background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); border-radius: 20px; padding: 5px 12px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: livePulse 1.5s ease-in-out infinite; }
+    @keyframes livePulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+    .content { padding: 28px; flex: 1; }
+    .page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+    .page-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; }
+    .page-sub { font-size: 13px; color: var(--muted); margin-top: 4px; font-family: 'DM Mono', monospace; letter-spacing: 1px; }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent3)); border: none; color: #030810; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; padding: 10px 20px; border-radius: 8px; cursor: pointer; transition: opacity 0.2s; }
+    .btn-primary:hover { opacity: 0.85; }
+
+    /* Stats */
+    .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+    .stat-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; display: flex; align-items: center; gap: 12px; flex: 1; min-width: 130px; position: relative; overflow: hidden; }
+    .stat-chip::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .stat-chip.c1::before { background: linear-gradient(90deg, var(--accent3), transparent); }
+    .stat-chip.c2::before { background: linear-gradient(90deg, var(--accent), transparent); }
+    .stat-chip.c3::before { background: linear-gradient(90deg, var(--danger), transparent); }
+    .stat-chip.c4::before { background: linear-gradient(90deg, var(--accent4), transparent); }
+    .stat-chip.c5::before { background: linear-gradient(90deg, var(--accent2), transparent); }
+    .stat-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .stat-icon svg { width: 16px; height: 16px; }
+    .stat-val { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 24px; line-height: 1; }
+    .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* Filters */
+    .filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 20px; font-size: 12px; font-family: 'Instrument Sans', sans-serif; cursor: pointer; transition: all 0.2s; }
+    .filter-btn.active { background: rgba(0,212,255,0.08); border-color: rgba(0,212,255,0.3); color: var(--accent); }
+    .filter-btn:hover:not(.active) { border-color: var(--border2); color: var(--text); }
+    .filter-search { flex: 1; min-width: 200px; max-width: 280px; background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-family: 'Instrument Sans', sans-serif; outline: none; transition: border-color 0.2s; }
+    .filter-search:focus { border-color: var(--accent); }
+    .filter-search::placeholder { color: var(--muted); }
+
+    /* Unit cards grid */
+    .units-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+
+    .unit-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.2s, transform 0.15s; animation: cardIn 0.4s ease both; }
+    @keyframes cardIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    .unit-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+    .unit-card.deployed { border-top: 2px solid var(--accent3); }
+    .unit-card.standby  { border-top: 2px solid var(--accent4); }
+    .unit-card.incident { border-top: 2px solid var(--danger); }
+    .unit-card.offline  { border-top: 2px solid var(--muted); opacity: 0.65; }
+
+    .unit-header { display: flex; align-items: flex-start; gap: 12px; padding: 16px 16px 12px; }
+    .unit-avatar { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; }
+    .unit-avatar.deployed { background: rgba(0,255,136,0.1); }
+    .unit-avatar.standby  { background: rgba(255,221,87,0.1); }
+    .unit-avatar.incident { background: rgba(255,51,102,0.1); }
+    .unit-avatar.offline  { background: rgba(74,122,150,0.12); }
+    .unit-id { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 1px; margin-bottom: 2px; }
+    .unit-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; }
+    .unit-type { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .unit-status-badge { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 9px; border-radius: 10px; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+    .unit-status-badge.deployed { background: rgba(0,255,136,0.08); color: var(--accent3); border: 1px solid rgba(0,255,136,0.15); }
+    .unit-status-badge.standby  { background: rgba(255,221,87,0.08); color: var(--accent4); border: 1px solid rgba(255,221,87,0.15); }
+    .unit-status-badge.incident { background: rgba(255,51,102,0.08); color: var(--danger); border: 1px solid rgba(255,51,102,0.15); }
+    .unit-status-badge.offline  { background: rgba(74,122,150,0.08); color: var(--muted); border: 1px solid rgba(74,122,150,0.15); }
+    .pulse-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .pulse-dot.deployed { background: var(--accent3); box-shadow: 0 0 5px var(--accent3); animation: pp 2s ease-in-out infinite; }
+    .pulse-dot.incident { background: var(--danger); box-shadow: 0 0 5px var(--danger); animation: pp 0.8s ease-in-out infinite; }
+    .pulse-dot.standby  { background: var(--accent4); }
+    .pulse-dot.offline  { background: var(--muted); }
+    @keyframes pp { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+    .unit-body { padding: 0 16px 12px; }
+    .unit-location { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .unit-location svg { width: 11px; height: 11px; flex-shrink: 0; }
+    .unit-meta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+    .unit-meta { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
+    .unit-meta span:last-child { color: var(--text); font-size: 12px; }
+    .unit-task { background: rgba(0,0,0,0.25); border-radius: 8px; padding: 8px 10px; font-size: 11px; color: var(--muted); line-height: 1.5; border-left: 2px solid var(--border2); }
+    .unit-task .task-label { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--accent); letter-spacing: 1px; display: block; margin-bottom: 3px; }
+
+    .unit-footer { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.1); }
+    .unit-action-btn { flex: 1; padding: 6px 0; border-radius: 6px; font-size: 11px; font-family: 'Instrument Sans', sans-serif; cursor: pointer; transition: all 0.2s; border: 1px solid; text-align: center; }
+    .btn-dispatch { background: rgba(0,255,136,0.06); border-color: rgba(0,255,136,0.2); color: var(--accent3); }
+    .btn-dispatch:hover { background: rgba(0,255,136,0.12); }
+    .btn-contact { background: rgba(0,212,255,0.06); border-color: rgba(0,212,255,0.2); color: var(--accent); }
+    .btn-contact:hover { background: rgba(0,212,255,0.12); }
+    .btn-recall { background: rgba(255,221,87,0.06); border-color: rgba(255,221,87,0.2); color: var(--accent4); }
+    .btn-recall:hover { background: rgba(255,221,87,0.12); }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 12px; }
+
+    /* Dispatch modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; padding: 28px; width: 420px; max-width: 90vw; box-shadow: 0 20px 60px rgba(0,0,0,0.6); animation: modalIn 0.3s ease; }
+    @keyframes modalIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
+    .modal-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+    .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+    .modal-field { margin-bottom: 14px; }
+    .modal-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
+    .modal-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 13px; font-family: 'Instrument Sans', sans-serif; outline: none; transition: border-color 0.2s; }
+    .modal-input:focus { border-color: var(--accent); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-btn-cancel { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-family: 'Instrument Sans', sans-serif; font-size: 13px; }
+    .modal-btn-dispatch { flex: 2; padding: 10px; border-radius: 8px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent3)); color: #030810; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    </div>
+    <div>
+      <div class="logo-text">FlowGrid</div>
+      <div class="logo-version">v3.4.1 · LIVE</div>
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item" href="home.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item" href="map.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+      Traffic Map
+    </a>
+    <a class="nav-item" href="window_4_incidents.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Incidents
+      <span class="nav-badge">7</span>
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Control</div>
+    <a class="nav-item" href="window_5_signal_nodes.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      Signal Control
+      <span class="nav-badge yellow">5</span>
+    </a>
+    <a class="nav-item active" href="window_3_field_units.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Field Units
+      <span class="nav-badge cyan" id="navDeployedCount">8</span>
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Analytics</div>
+    <a class="nav-item" href="window_6_flow_chart.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Flow Analytics
+    </a>
+    <a class="nav-item" href="window_2_kpi_cards.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      KPI Analytics
+    </a>
+    <a class="nav-item" href="window_7_sensor_health.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Sensors
+      <span class="nav-badge green">OK</span>
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">System</div>
+    <a class="nav-item" href="window_1_login.html" style="color:var(--danger)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Logout
+    </a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="avatar">OP</div>
+      <div class="user-info">
+        <div class="user-name">Demo Operator</div>
+        <div class="user-role">ADMIN · ZONE A</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">Field Units</div>
+    <span class="topbar-sub">/ Personnel &amp; Vehicle Dispatch</span>
+    <div class="topbar-spacer"></div>
+    <button class="btn-primary" onclick="openDispatch()">+ Dispatch Unit</button>
+    <div class="live-badge" style="margin-left:12px"><div class="live-dot"></div>GPS ACTIVE</div>
+  </div>
+
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Field Unit Management</div>
+        <div class="page-sub">REAL-TIME TRACKING · GPS ENABLED · 14 UNITS REGISTERED</div>
+      </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stat-chip c1">
+        <div class="stat-icon" style="background:rgba(0,255,136,0.12)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#00ff88" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div><div class="stat-val" style="color:var(--accent3)" id="cntDeployed">8</div><div class="stat-lbl">Deployed</div></div>
+      </div>
+      <div class="stat-chip c4">
+        <div class="stat-icon" style="background:rgba(255,221,87,0.12)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ffdd57" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        </div>
+        <div><div class="stat-val" style="color:var(--accent4)" id="cntStandby">3</div><div class="stat-lbl">On Standby</div></div>
+      </div>
+      <div class="stat-chip c3">
+        <div class="stat-icon" style="background:rgba(255,51,102,0.12)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ff3366" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div><div class="stat-val" style="color:var(--danger)" id="cntIncident">2</div><div class="stat-lbl">At Incident</div></div>
+      </div>
+      <div class="stat-chip c5">
+        <div class="stat-icon" style="background:rgba(74,122,150,0.12)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#4a7a96" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+        </div>
+        <div><div class="stat-val" style="color:var(--muted)" id="cntOffline">1</div><div class="stat-lbl">Offline / OOB</div></div>
+      </div>
+      <div class="stat-chip c2">
+        <div class="stat-icon" style="background:rgba(0,212,255,0.12)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+        </div>
+        <div><div class="stat-val" style="color:var(--accent)" id="cntZones">6</div><div class="stat-lbl">Zones Covered</div></div>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filterUnits('all',this)">All Units</button>
+      <button class="filter-btn" onclick="filterUnits('deployed',this)">Deployed</button>
+      <button class="filter-btn" onclick="filterUnits('standby',this)">Standby</button>
+      <button class="filter-btn" onclick="filterUnits('incident',this)">At Incident</button>
+      <button class="filter-btn" onclick="filterUnits('offline',this)">Offline</button>
+      <div style="width:1px;height:24px;background:var(--border);margin:0 4px"></div>
+      <button class="filter-btn active" onclick="filterType('all',this)">All Types</button>
+      <button class="filter-btn" onclick="filterType('patrol',this)">Patrol</button>
+      <button class="filter-btn" onclick="filterType('response',this)">Response</button>
+      <button class="filter-btn" onclick="filterType('traffic',this)">Traffic</button>
+      <input type="text" class="filter-search" placeholder="Search unit or officer…" oninput="searchUnits(this.value)"/>
+    </div>
+
+    <!-- Units Grid -->
+    <div class="units-grid" id="unitsGrid"></div>
+  </div>
+</div>
+
+<!-- Dispatch Modal -->
+<div class="modal-overlay" id="dispatchModal">
+  <div class="modal">
+    <div class="modal-title">Dispatch Field Unit</div>
+    <div class="modal-sub">Assign a standby unit to a location or incident</div>
+    <div class="modal-field">
+      <div class="modal-label">Select Unit</div>
+      <select class="modal-input" id="dispatchUnit">
+        <option>FU-04 · Officer Priya S. (Standby)</option>
+        <option>FU-10 · Officer Karthik R. (Standby)</option>
+        <option>FU-13 · Officer Meena V. (Standby)</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Destination / Location</div>
+      <input class="modal-input" type="text" placeholder="e.g. NH-44 KM 14, Zone B" id="dispatchLoc"/>
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Mission Type</div>
+      <select class="modal-input" id="dispatchMission">
+        <option>Traffic Control</option>
+        <option>Incident Response</option>
+        <option>Road Patrol</option>
+        <option>Signal Override</option>
+        <option>VIP Escort</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Priority</div>
+      <select class="modal-input" id="dispatchPriority">
+        <option>Normal</option>
+        <option>High</option>
+        <option>Critical</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeDispatch()">Cancel</button>
+      <button class="modal-btn-dispatch" onclick="confirmDispatch()">⚡ Dispatch Now</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const UNITS = [
+  { id:'FU-01', name:'Officer Arjun M.', type:'patrol',   zone:'A', status:'deployed', emoji:'👮',
+    location:'Anna Salai @ Gemini Flyover', vehicle:'Patrol Bike #PB-112',
+    shift:'06:00–14:00', response:'3.2 km', task:'Traffic flow regulation · NH-44 N-bound peak hour control' },
+  { id:'FU-02', name:'Officer Lakshmi P.', type:'traffic', zone:'B', status:'incident', emoji:'👮‍♀️',
+    location:'NH-44 KM 14 · Collision Site', vehicle:'Response Van #RV-07',
+    shift:'06:00–14:00', response:'0.1 km', task:'Multi-vehicle collision response · Coordinating with emergency services' },
+  { id:'FU-03', name:'Sgt. Venkat R.', type:'response', zone:'A', status:'deployed', emoji:'🚔',
+    location:'Ring Road Junction R-1', vehicle:'Supervisor Jeep #SJ-03',
+    shift:'07:00–15:00', response:'1.8 km', task:'Junction oversight · Signal override coordination at R-1' },
+  { id:'FU-04', name:'Officer Priya S.', type:'traffic', zone:'C', status:'standby', emoji:'👮‍♀️',
+    location:'ECR Base Station', vehicle:'Unassigned',
+    shift:'14:00–22:00', response:'N/A', task:'Awaiting dispatch · Checked in at base 09:42' },
+  { id:'FU-05', name:'Officer Deepak N.', type:'patrol', zone:'F', status:'deployed', emoji:'👮',
+    location:'OMR Sholinganallur Junction', vehicle:'Patrol Bike #PB-104',
+    shift:'06:00–14:00', response:'0.4 km', task:'OMR peak hour monitoring · IT corridor congestion management' },
+  { id:'FU-06', name:'Officer Sunitha K.', type:'patrol', zone:'F', status:'incident', emoji:'👮‍♀️',
+    location:'OMR Perungudi · Congestion Pt.', vehicle:'Patrol Bike #PB-108',
+    shift:'06:00–14:00', response:'0.0 km', task:'Active incident — congestion clearance · Manual traffic direction' },
+  { id:'FU-07', name:'Officer Ravi T.', type:'response', zone:'D', status:'deployed', emoji:'🚔',
+    location:'Tambaram Flyover South', vehicle:'Response Van #RV-11',
+    shift:'07:00–15:00', response:'2.1 km', task:'Road patrol · Tambaram–Chromepet corridor monitoring' },
+  { id:'FU-08', name:'Officer Anitha B.', type:'traffic', zone:'E', status:'deployed', emoji:'👮‍♀️',
+    location:'GST Road KM 12', vehicle:'Patrol Car #PC-21',
+    shift:'06:00–14:00', response:'0.7 km', task:'Waterlogging advisory enforcement · Speed control 30 km/h zone' },
+  { id:'FU-09', name:'Sgt. Mohan D.', type:'response', zone:'A', status:'deployed', emoji:'🚔',
+    location:'Anna Salai @ Nandanam', vehicle:'Supervisor Jeep #SJ-05',
+    shift:'08:00–16:00', response:'1.2 km', task:'Zone A supervisor patrol · Random vehicle checks · Signal audit' },
+  { id:'FU-10', name:'Officer Karthik R.', type:'patrol', zone:'B', status:'standby', emoji:'👮',
+    location:'NH-44 Base Station', vehicle:'Unassigned',
+    shift:'14:00–22:00', response:'N/A', task:'Standby rotation · Afternoon shift preparation' },
+  { id:'FU-11', name:'Officer Kavya L.', type:'traffic', zone:'C', status:'deployed', emoji:'👮‍♀️',
+    location:'ECR Thiruvanmiyur Signal', vehicle:'Patrol Car #PC-14',
+    shift:'06:00–14:00', response:'1.6 km', task:'Signal fault observation · Backup to automated system at S-22' },
+  { id:'FU-12', name:'Officer Balaji S.', type:'patrol', zone:'D', status:'deployed', emoji:'👮',
+    location:'Pallavaram Junction P-4', vehicle:'Patrol Bike #PB-119',
+    shift:'07:00–15:00', response:'0.9 km', task:'Pallavaram–Chrompet patrol segment · Random checks' },
+  { id:'FU-13', name:'Officer Meena V.', type:'response', zone:'E', status:'standby', emoji:'👮‍♀️',
+    location:'GST Base Station', vehicle:'Unassigned',
+    shift:'06:00–14:00', response:'N/A', task:'Standby · Available for immediate dispatch' },
+  { id:'FU-14', name:'Officer Selvam R.', type:'traffic', zone:'F', status:'offline', emoji:'👮',
+    location:'OMR Zone F (OOB)', vehicle:'Patrol Car #PC-09',
+    shift:'Off Duty', response:'N/A', task:'Off-duty. Last active: 06:14 today. GPS last pinged 4h ago.' },
+];
+
+let activeStatus = 'all';
+let activeType = 'all';
+let searchTerm = '';
+
+function filterUnits(f, btn) {
+  activeStatus = f;
+  document.querySelectorAll('.filter-bar .filter-btn:not([onclick*="filterType"])').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderUnits();
+}
+function filterType(f, btn) {
+  activeType = f;
+  document.querySelectorAll('.filter-bar .filter-btn[onclick*="filterType"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderUnits();
+}
+function searchUnits(v) {
+  searchTerm = v.toLowerCase();
+  renderUnits();
+}
+
+function renderUnits() {
+  const grid = document.getElementById('unitsGrid');
+  const filtered = UNITS.filter(u => {
+    const st = activeStatus === 'all' ? true : u.status === activeStatus;
+    const ty = activeType === 'all' ? true : u.type === activeType;
+    const sr = searchTerm === '' ? true : (u.id.toLowerCase().includes(searchTerm) || u.name.toLowerCase().includes(searchTerm) || u.location.toLowerCase().includes(searchTerm));
+    return st && ty && sr;
+  });
+
+  if(!filtered.length) {
+    grid.innerHTML = '<div class="empty-state">NO UNITS MATCH YOUR FILTERS</div>';
+    return;
+  }
+
+  const statusLabel = { deployed:'DEPLOYED', standby:'STANDBY', incident:'AT INCIDENT', offline:'OFFLINE' };
+  const actionBtns = {
+    deployed: `<button class="unit-action-btn btn-recall" onclick="recallUnit(event)">Recall</button><button class="unit-action-btn btn-contact" onclick="contactUnit(event)">Contact</button>`,
+    standby:  `<button class="unit-action-btn btn-dispatch" onclick="quickDispatch(event)">Dispatch</button><button class="unit-action-btn btn-contact" onclick="contactUnit(event)">Contact</button>`,
+    incident: `<button class="unit-action-btn btn-recall" style="border-color:rgba(255,51,102,0.25);color:var(--danger)" onclick="recallUnit(event)">Recall</button><button class="unit-action-btn btn-contact" onclick="contactUnit(event)">Contact</button>`,
+    offline:  `<button class="unit-action-btn btn-contact" onclick="contactUnit(event)" style="opacity:0.5;cursor:not-allowed">Unavailable</button>`,
+  };
+
+  grid.innerHTML = filtered.map((u, i) => `
+    <div class="unit-card ${u.status}" style="animation-delay:${i*0.04}s">
+      <div class="unit-header">
+        <div class="unit-avatar ${u.status}">${u.emoji}</div>
+        <div style="flex:1">
+          <div class="unit-id">${u.id} · ZONE ${u.zone} · ${u.type.toUpperCase()}</div>
+          <div class="unit-name">${u.name}</div>
+          <div class="unit-type">${u.vehicle}</div>
+        </div>
+        <div class="unit-status-badge ${u.status}">
+          <span class="pulse-dot ${u.status}"></span>
+          ${statusLabel[u.status]}
+        </div>
+      </div>
+      <div class="unit-body">
+        <div class="unit-location">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          ${u.location}
+        </div>
+        <div class="unit-meta-row">
+          <div class="unit-meta"><span>SHIFT</span><span>${u.shift}</span></div>
+          <div class="unit-meta"><span>NEAREST INC</span><span>${u.response}</span></div>
+        </div>
+        <div class="unit-task">
+          <span class="task-label">CURRENT TASK</span>
+          ${u.task}
+        </div>
+      </div>
+      <div class="unit-footer">${actionBtns[u.status]}</div>
+    </div>`).join('');
+}
+
+function recallUnit(e) {
+  const card = e.target.closest('.unit-card');
+  card.style.opacity = '0.5';
+  card.style.transition = 'opacity 0.4s';
+  setTimeout(() => { card.style.opacity = '1'; }, 600);
+  showToast('Unit recalled to base');
+}
+function contactUnit(e) { showToast('Connecting via radio…'); }
+function quickDispatch(e) { openDispatch(); }
+
+function openDispatch() {
+  document.getElementById('dispatchModal').classList.add('open');
+}
+function closeDispatch() {
+  document.getElementById('dispatchModal').classList.remove('open');
+}
+function confirmDispatch() {
+  const loc = document.getElementById('dispatchLoc').value.trim();
+  if(!loc) { document.getElementById('dispatchLoc').focus(); return; }
+  closeDispatch();
+  showToast('Unit dispatched successfully');
+  // Update standby count
+  const cnt = parseInt(document.getElementById('cntStandby').textContent);
+  const dep = parseInt(document.getElementById('cntDeployed').textContent);
+  if(cnt > 0) {
+    document.getElementById('cntStandby').textContent = cnt - 1;
+    document.getElementById('cntDeployed').textContent = dep + 1;
+    document.getElementById('navDeployedCount').textContent = dep + 1;
+  }
+}
+
+// Toast
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if(!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#0d1721;border:1px solid #243d54;color:#e8f4f8;font-family:"DM Mono",monospace;font-size:12px;padding:12px 20px;border-radius:10px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.5);transition:opacity 0.3s';
+    document.body.appendChild(t);
+  }
+  t.textContent = '✓ ' + msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 2500);
+}
+
+// Close modal on overlay click
+document.getElementById('dispatchModal').addEventListener('click', function(e) {
+  if(e.target === this) closeDispatch();
+});
+
+renderUnits();
+
+// Live GPS position micro-updates
+setInterval(() => {
+  // Randomly update a deployed unit's location display
+  const deployed = UNITS.filter(u => u.status === 'deployed');
+  if(deployed.length) {
+    const u = deployed[Math.floor(Math.random()*deployed.length)];
+    const resp = (Math.random()*4+0.2).toFixed(1) + ' km';
+    u.response = resp;
+  }
+}, 8000);
+</script>
+</body>
+</html>

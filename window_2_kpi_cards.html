@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FlowGrid — KPI Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #050a0f; --surface: #0d1721; --surface2: #111f2e;
+      --border: #1a2d3f; --border2: #243d54;
+      --accent: #00d4ff; --accent2: #ff6b35; --accent3: #00ff88; --accent4: #ffdd57;
+      --text: #e8f4f8; --muted: #4a7a96; --danger: #ff3366;
+      --sidebar-w: 240px;
+    }
+    body { font-family: 'Instrument Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; overflow-x: hidden; }
+    body::before { content: ''; position: fixed; inset: 0; z-index: -1; background: radial-gradient(ellipse 600px 400px at 80% 0%, rgba(0,212,255,0.04), transparent), radial-gradient(ellipse 500px 400px at 10% 100%, rgba(0,255,136,0.03), transparent), var(--bg); }
+
+    /* SIDEBAR */
+    .sidebar { width: var(--sidebar-w); min-height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; overflow: hidden; }
+    .sidebar::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 200px; background: radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.08), transparent 70%); pointer-events: none; }
+    .sidebar-logo { padding: 24px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--accent3)); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-icon svg { width: 20px; height: 20px; stroke: #030810; }
+    .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; background: linear-gradient(90deg, var(--accent), var(--accent3)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .logo-version { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 2px; }
+    .nav-section { padding: 20px 12px 8px; }
+    .nav-section-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); padding: 0 8px; margin-bottom: 6px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: all 0.2s; margin-bottom: 2px; position: relative; color: var(--muted); font-size: 14px; text-decoration: none; border: 1px solid transparent; }
+    .nav-item:hover { background: rgba(0,212,255,0.05); color: var(--text); border-color: var(--border); }
+    .nav-item.active { background: linear-gradient(135deg, rgba(0,212,255,0.12), rgba(0,255,136,0.05)); color: var(--accent); border-color: rgba(0,212,255,0.2); }
+    .nav-item.active::before { content: ''; position: absolute; left: -12px; width: 3px; height: 60%; top: 20%; background: var(--accent); border-radius: 0 2px 2px 0; }
+    .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--danger); color: white; font-size: 10px; font-family: 'DM Mono', monospace; padding: 1px 6px; border-radius: 10px; }
+    .nav-badge.yellow { background: var(--accent4); color: #030810; }
+    .nav-badge.green { background: var(--accent3); color: #030810; }
+    .sidebar-footer { margin-top: auto; border-top: 1px solid var(--border); padding: 16px 12px; }
+    .user-card { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; cursor: pointer; }
+    .avatar { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #006d8a, #00d4ff); display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: #030810; flex-shrink: 0; }
+    .user-info { flex: 1; }
+    .user-name { font-size: 13px; font-weight: 600; }
+    .user-role { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); }
+
+    /* MAIN */
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+    .topbar { height: 64px; background: rgba(5,10,15,0.8); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 28px; gap: 16px; position: sticky; top: 0; z-index: 50; }
+    .topbar-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; }
+    .topbar-sub { font-size: 13px; color: var(--muted); margin-left: 4px; }
+    .topbar-spacer { flex: 1; }
+    .live-badge { display: flex; align-items: center; gap: 6px; background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); border-radius: 20px; padding: 5px 12px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent3); }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent3); box-shadow: 0 0 6px var(--accent3); animation: livePulse 1.5s ease-in-out infinite; }
+    @keyframes livePulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+    .content { padding: 28px; flex: 1; }
+    .page-header { margin-bottom: 24px; }
+    .page-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; }
+    .page-sub { font-size: 13px; color: var(--muted); margin-top: 4px; font-family: 'DM Mono', monospace; letter-spacing: 1px; }
+
+    /* KPI Grid */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; position: relative; overflow: hidden; transition: border-color 0.2s, transform 0.2s; cursor: default; animation: cardIn 0.5s ease both; }
+    @keyframes cardIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    .kpi-card:nth-child(1) { animation-delay: 0.05s; }
+    .kpi-card:nth-child(2) { animation-delay: 0.1s; }
+    .kpi-card:nth-child(3) { animation-delay: 0.15s; }
+    .kpi-card:nth-child(4) { animation-delay: 0.2s; }
+    .kpi-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .kpi-card.cyan::before { background: linear-gradient(90deg, var(--accent), transparent); }
+    .kpi-card.orange::before { background: linear-gradient(90deg, var(--accent2), transparent); }
+    .kpi-card.green::before { background: linear-gradient(90deg, var(--accent3), transparent); }
+    .kpi-card.yellow::before { background: linear-gradient(90deg, var(--accent4), transparent); }
+    .kpi-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+    .kpi-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .kpi-icon.cyan { background: rgba(0,212,255,0.1); color: var(--accent); }
+    .kpi-icon.orange { background: rgba(255,107,53,0.1); color: var(--accent2); }
+    .kpi-icon.green { background: rgba(0,255,136,0.1); color: var(--accent3); }
+    .kpi-icon.yellow { background: rgba(255,221,87,0.1); color: var(--accent4); }
+    .kpi-icon svg { width: 18px; height: 18px; }
+    .kpi-trend { font-family: 'DM Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 20px; }
+    .kpi-trend.up { background: rgba(0,255,136,0.1); color: var(--accent3); }
+    .kpi-trend.down { background: rgba(255,51,102,0.1); color: var(--danger); }
+    .kpi-trend.neutral { background: rgba(255,221,87,0.08); color: var(--accent4); }
+    .kpi-value { font-family: 'Syne', sans-serif; font-size: 30px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+    .kpi-label { font-size: 12px; color: var(--muted); }
+    .kpi-sub { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 8px; }
+    .sparkline { display: flex; align-items: flex-end; gap: 3px; height: 32px; margin-top: 10px; }
+    .spark-bar { flex: 1; border-radius: 2px; opacity: 0.55; transition: opacity 0.2s, height 0.4s ease; }
+    .kpi-card:hover .spark-bar { opacity: 0.85; }
+    .kpi-card.cyan .spark-bar { background: var(--accent); }
+    .kpi-card.orange .spark-bar { background: var(--accent2); }
+    .kpi-card.green .spark-bar { background: var(--accent3); }
+    .kpi-card.yellow .spark-bar { background: var(--accent4); }
+
+    /* Detail cards */
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .detail-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .detail-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .detail-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; }
+    .detail-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .detail-body { padding: 16px 20px; }
+
+    /* Mini bar chart */
+    .mini-chart { display: flex; align-items: flex-end; gap: 5px; height: 80px; }
+    .mc-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .mc-bar { width: 100%; border-radius: 3px 3px 0 0; transition: opacity 0.2s; cursor: pointer; }
+    .mc-bar:hover { opacity: 0.8; }
+    .mc-label { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); }
+
+    /* Metric list */
+    .metric-list { display: flex; flex-direction: column; gap: 0; }
+    .metric-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(26,45,63,0.5); }
+    .metric-row:last-child { border-bottom: none; }
+    .metric-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .metric-name { flex: 1; font-size: 13px; }
+    .metric-val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; }
+    .metric-trend { font-family: 'DM Mono', monospace; font-size: 10px; padding: 2px 7px; border-radius: 10px; }
+    .trend-up { background: rgba(0,255,136,0.1); color: var(--accent3); }
+    .trend-dn { background: rgba(255,51,102,0.1); color: var(--danger); }
+    .trend-nt { background: rgba(255,221,87,0.08); color: var(--accent4); }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    </div>
+    <div>
+      <div class="logo-text">FlowGrid</div>
+      <div class="logo-version">v3.4.1 · LIVE</div>
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item" href="home.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item" href="map.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+      Traffic Map
+    </a>
+    <a class="nav-item" href="window_4_incidents.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Incidents
+      <span class="nav-badge">7</span>
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Control</div>
+    <a class="nav-item" href="window_5_signal_nodes.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      Signal Control
+      <span class="nav-badge yellow">5</span>
+    </a>
+    <a class="nav-item" href="window_3_field_units.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+      Field Units
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Analytics</div>
+    <a class="nav-item" href="window_6_flow_chart.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Flow Analytics
+    </a>
+    <a class="nav-item active" href="window_2_kpi_cards.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      KPI Analytics
+    </a>
+    <a class="nav-item" href="window_7_sensor_health.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Sensors
+      <span class="nav-badge green">OK</span>
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">System</div>
+    <a class="nav-item" href="window_1_login.html" style="color:var(--danger)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Logout
+    </a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="avatar">OP</div>
+      <div class="user-info">
+        <div class="user-name">Demo Operator</div>
+        <div class="user-role">ADMIN · ZONE A</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">KPI Analytics</div>
+    <span class="topbar-sub">/ Real-time Metrics</span>
+    <div class="topbar-spacer"></div>
+    <div class="live-badge"><div class="live-dot"></div>LIVE · 3s REFRESH</div>
+  </div>
+
+  <div class="content">
+    <div class="page-header">
+      <div class="page-title">Key Performance Indicators</div>
+      <div class="page-sub">REAL-TIME · ALL ZONES · AUTO-UPDATES EVERY 3s</div>
+    </div>
+
+    <!-- 4 KPI Cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card cyan">
+        <div class="kpi-header">
+          <div class="kpi-icon cyan">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <span class="kpi-trend up" id="trend1">↑ 4.2%</span>
+        </div>
+        <div class="kpi-value" id="kpiVehicles">24,810</div>
+        <div class="kpi-label">Vehicles Tracked</div>
+        <div class="kpi-sub">Across 6 zones · Real-time</div>
+        <div class="sparkline" id="spark1"></div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-header">
+          <div class="kpi-icon orange">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <span class="kpi-trend down" id="trend2">↑ 12%</span>
+        </div>
+        <div class="kpi-value" id="kpiIncidents" style="color:var(--accent2)">7</div>
+        <div class="kpi-label">Active Incidents</div>
+        <div class="kpi-sub" id="incSub">3 Critical · 4 Minor</div>
+        <div class="sparkline" id="spark2"></div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-header">
+          <div class="kpi-icon green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <span class="kpi-trend up" id="trend3">↑ 8.1%</span>
+        </div>
+        <div class="kpi-value" id="kpiFlow">68.4<span style="font-size:16px;color:var(--muted)">km/h</span></div>
+        <div class="kpi-label">Avg. Flow Speed</div>
+        <div class="kpi-sub">Highway avg: 94.2 km/h</div>
+        <div class="sparkline" id="spark3"></div>
+      </div>
+      <div class="kpi-card yellow">
+        <div class="kpi-header">
+          <div class="kpi-icon yellow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2"/></svg>
+          </div>
+          <span class="kpi-trend neutral" id="trend4">→ 0%</span>
+        </div>
+        <div class="kpi-value" id="kpiSignals">142</div>
+        <div class="kpi-label">Active Signals</div>
+        <div class="kpi-sub">98.6% uptime · 2 offline</div>
+        <div class="sparkline" id="spark4"></div>
+      </div>
+    </div>
+
+    <!-- Detail grid -->
+    <div class="detail-grid">
+      <!-- Vehicles by zone -->
+      <div class="detail-card">
+        <div class="detail-header">
+          <div>
+            <div class="detail-title">Vehicles by Zone</div>
+            <div class="detail-sub">Current distribution</div>
+          </div>
+        </div>
+        <div class="detail-body">
+          <div class="mini-chart" id="zoneChart"></div>
+          <div class="metric-list" style="margin-top:12px" id="zoneList"></div>
+        </div>
+      </div>
+
+      <!-- KPI breakdown -->
+      <div class="detail-card">
+        <div class="detail-header">
+          <div>
+            <div class="detail-title">Performance Breakdown</div>
+            <div class="detail-sub">Key metrics vs. targets</div>
+          </div>
+        </div>
+        <div class="detail-body">
+          <div class="metric-list" id="metricList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Historical 7-day trends -->
+    <div class="detail-card" style="margin-bottom:20px">
+      <div class="detail-header">
+        <div>
+          <div class="detail-title">7-Day KPI Trend</div>
+          <div class="detail-sub">Vehicles tracked per day (last 7 days)</div>
+        </div>
+      </div>
+      <div class="detail-body">
+        <div class="mini-chart" id="weekChart" style="height:100px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Sparklines
+function buildSparkline(id, color, count = 14) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  Array.from({length: count}, () => 15 + Math.random() * 85).forEach(h => {
+    const bar = document.createElement('div');
+    bar.className = 'spark-bar';
+    bar.style.height = h + '%';
+    el.appendChild(bar);
+  });
+}
+buildSparkline('spark1'); buildSparkline('spark2'); buildSparkline('spark3'); buildSparkline('spark4');
+
+// Zone chart
+const ZONES = [
+  { zone:'A', vol:4820, color:'#00d4ff' }, { zone:'B', vol:3640, color:'#00ff88' },
+  { zone:'C', vol:2190, color:'#ffdd57' }, { zone:'D', vol:1870, color:'#ff6b35' },
+  { zone:'E', vol:3310, color:'#ff3366' }, { zone:'F', vol:5640, color:'#9b59b6' }
+];
+const maxZ = Math.max(...ZONES.map(z => z.vol));
+function buildZoneChart() {
+  const el = document.getElementById('zoneChart');
+  el.innerHTML = ZONES.map(z => {
+    const pct = (z.vol/maxZ*100);
+    return `<div class="mc-bar-wrap">
+      <div class="mc-bar" style="height:${pct}%;background:${z.color};opacity:0.7" title="Zone ${z.zone}: ${z.vol.toLocaleString()}"></div>
+      <div class="mc-label">Z-${z.zone}</div>
+    </div>`;
+  }).join('');
+  const listEl = document.getElementById('zoneList');
+  listEl.innerHTML = ZONES.slice(0,4).map(z => `
+    <div class="metric-row">
+      <span class="metric-dot" style="background:${z.color}"></span>
+      <span class="metric-name">Zone ${z.zone}</span>
+      <span class="metric-val">${z.vol.toLocaleString()}</span>
+      <span class="metric-trend trend-up">↑ ${(Math.random()*5+1).toFixed(1)}%</span>
+    </div>`).join('');
+}
+buildZoneChart();
+
+// Metrics
+function buildMetrics() {
+  const METRICS = [
+    { name:'Signal Uptime', val:'98.6%', target:'95%', trend:'trend-up', t:'↑ 0.4%' },
+    { name:'Avg. Delay Time', val:'4.2 min', target:'< 5 min', trend:'trend-up', t:'↓ 0.8m' },
+    { name:'Throughput Index', val:'87.3', target:'80+', trend:'trend-up', t:'↑ 1.8' },
+    { name:'Incident Response', val:'8.4 min', target:'< 10 min', trend:'trend-up', t:'↓ 1.2m' },
+    { name:'Congestion Zones', val:'3 of 6', target:'0–2', trend:'trend-nt', t:'→ 0' },
+    { name:'Sensor Uptime', val:'99.2%', target:'99%+', trend:'trend-up', t:'↑ 0.2%' },
+  ];
+  document.getElementById('metricList').innerHTML = METRICS.map(m => `
+    <div class="metric-row">
+      <span class="metric-name">${m.name}</span>
+      <span style="font-size:11px;color:var(--muted);margin-right:8px">Target: ${m.target}</span>
+      <span class="metric-val">${m.val}</span>
+      <span class="metric-trend ${m.trend}">${m.t}</span>
+    </div>`).join('');
+}
+buildMetrics();
+
+// Week chart
+const WEEK_DATA = [21400, 22100, 23500, 22800, 24810, 18200, 15900];
+const WEEK_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const maxW = Math.max(...WEEK_DATA);
+function buildWeekChart() {
+  document.getElementById('weekChart').innerHTML = WEEK_DATA.map((v, i) => {
+    const pct = (v/maxW*100);
+    const col = i===4 ? '#ff3366' : i>=5 ? '#4a7a96' : '#00d4ff';
+    return `<div class="mc-bar-wrap">
+      <div class="mc-bar" style="height:${pct}%;background:${col};opacity:0.7" title="${WEEK_LABELS[i]}: ${v.toLocaleString()}"></div>
+      <div class="mc-label">${WEEK_LABELS[i]}</div>
+    </div>`;
+  }).join('');
+}
+buildWeekChart();
+
+// Live counter updates (every 3 seconds)
+let vehicles = 24810;
+let flow = 68.4;
+setInterval(() => {
+  vehicles += Math.floor((Math.random()-0.45)*80);
+  const v = document.getElementById('kpiVehicles');
+  if(v) v.textContent = vehicles.toLocaleString();
+
+  flow = Math.max(40, Math.min(95, flow + (Math.random()-0.5)*1.5));
+  const f = document.getElementById('kpiFlow');
+  if(f) f.innerHTML = flow.toFixed(1)+'<span style="font-size:16px;color:var(--muted)">km/h</span>';
+
+  // Refresh sparklines occasionally
+  if(Math.random() > 0.7) {
+    buildSparkline('spark1');
+    buildSparkline('spark3');
+  }
+}, 3000);
+</script>
+</body>
+</html>

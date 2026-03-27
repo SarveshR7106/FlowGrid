@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FlowGrid — Window 1: Login Page</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #050a0f; --surface: #0d1721; --border: #1a2d3f;
+      --accent: #00d4ff; --accent2: #ff6b35; --accent3: #00ff88;
+      --text: #e8f4f8; --muted: #4a7a96; --danger: #ff3366;
+    }
+    body { font-family: 'Instrument Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; overflow: hidden; }
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0;
+      background-image: linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px; animation: gridMove 20s linear infinite;
+    }
+    @keyframes gridMove { 0% { transform: translateY(0); } 100% { transform: translateY(60px); } }
+    .left-panel {
+      position: relative; width: 55%;
+      background: linear-gradient(135deg, #030810 0%, #0a1628 50%, #041020 100%);
+      overflow: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .road-scene { position: absolute; inset: 0; perspective: 800px; }
+    .road { position: absolute; bottom: -20px; left: 50%; width: 280px; height: 110%; background: #111c28; transform-origin: bottom center; transform: translateX(-50%) perspective(600px) rotateX(20deg); }
+    .lane-line { position: absolute; left: 50%; width: 4px; background: linear-gradient(to bottom, transparent, var(--accent), transparent); transform: translateX(-50%); animation: laneScroll 1.8s linear infinite; }
+    .lane-line:nth-child(1) { height: 60px; top: -60px; animation-delay: 0s; }
+    .lane-line:nth-child(2) { height: 60px; top: -60px; animation-delay: 0.6s; }
+    .lane-line:nth-child(3) { height: 60px; top: -60px; animation-delay: 1.2s; }
+    @keyframes laneScroll { 0% { top: -60px; opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { top: 110%; opacity: 0; } }
+    .car { position: absolute; width: 28px; height: 52px; border-radius: 6px 6px 4px 4px; animation: carDrive linear infinite; }
+    .car::before { content: ''; position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); width: 8px; height: 14px; background: rgba(255,255,150,0.9); border-radius: 0 0 3px 3px; box-shadow: 0 0 12px 4px rgba(255,255,150,0.4); }
+    .car-1 { left: 30%; background: linear-gradient(180deg, #1e90ff, #0a4a8a); animation-duration: 3s; animation-delay: 0s; box-shadow: 0 0 15px rgba(30,144,255,0.5); }
+    .car-2 { left: 55%; background: linear-gradient(180deg, #ff6b35, #a03a10); animation-duration: 4.5s; animation-delay: 1s; box-shadow: 0 0 15px rgba(255,107,53,0.5); }
+    .car-3 { left: 20%; background: linear-gradient(180deg, #00ff88, #007a40); animation-duration: 2.8s; animation-delay: 2s; box-shadow: 0 0 15px rgba(0,255,136,0.5); }
+    .car-4 { left: 65%; background: linear-gradient(180deg, #d4a0ff, #6a0acc); animation-duration: 3.8s; animation-delay: 0.5s; box-shadow: 0 0 15px rgba(212,160,255,0.5); }
+    .car-5 { left: 42%; background: linear-gradient(180deg, #ffdd57, #aa8a00); animation-duration: 5s; animation-delay: 1.8s; box-shadow: 0 0 15px rgba(255,221,87,0.5); }
+    @keyframes carDrive { 0% { top: -80px; opacity: 0; } 5% { opacity: 1; } 90% { opacity: 1; } 100% { top: 105%; opacity: 0; } }
+    .skyline { position: absolute; bottom: 0; left: 0; right: 0; height: 220px; }
+    .skyline svg { width: 100%; height: 100%; }
+    .data-node { position: absolute; display: flex; align-items: center; gap: 8px; background: rgba(13,23,33,0.85); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 8px 12px; border-radius: 4px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); backdrop-filter: blur(8px); animation: nodeFloat 4s ease-in-out infinite; }
+    .data-node.orange { border-left-color: var(--accent2); color: var(--accent2); }
+    .data-node.green { border-left-color: var(--accent3); color: var(--accent3); }
+    .data-node:nth-child(1) { top: 15%; left: 8%; animation-delay: 0s; }
+    .data-node:nth-child(2) { top: 30%; right: 5%; animation-delay: 1.3s; }
+    .data-node:nth-child(3) { top: 55%; left: 5%; animation-delay: 2.6s; }
+    .data-node:nth-child(4) { top: 70%; right: 8%; animation-delay: 0.8s; }
+    @keyframes nodeFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    .node-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; animation: nodePulse 1.5s ease-in-out infinite; }
+    @keyframes nodePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
+    .left-hero-text { position: relative; z-index: 10; text-align: center; }
+    .logo-mark { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 56px; letter-spacing: -2px; background: linear-gradient(135deg, var(--accent) 0%, #0090b3 50%, var(--accent3) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1; }
+    .logo-tagline { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 4px; color: var(--muted); text-transform: uppercase; margin-top: 8px; }
+    .logo-sub { margin-top: 24px; font-size: 15px; color: var(--muted); max-width: 300px; line-height: 1.6; }
+    .status-bar { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); display: flex; gap: 24px; background: rgba(13,23,33,0.7); border: 1px solid var(--border); padding: 10px 20px; border-radius: 30px; backdrop-filter: blur(12px); z-index: 10; }
+    .status-item { display: flex; align-items: center; gap: 6px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .status-dot.green { background: var(--accent3); box-shadow: 0 0 6px var(--accent3); animation: nodePulse 2s ease-in-out infinite; }
+    .status-dot.yellow { background: #ffdd57; box-shadow: 0 0 6px #ffdd57; }
+    /* RIGHT PANEL */
+    .right-panel { width: 45%; background: var(--bg); display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; padding: 40px; }
+    .form-container { width: 100%; max-width: 400px; }
+    .form-header { margin-bottom: 32px; }
+    .form-eyebrow { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+    .form-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 36px; line-height: 1.1; margin-bottom: 10px; }
+    .form-title span { background: linear-gradient(90deg, var(--accent), var(--accent3)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .form-sub { font-size: 14px; color: var(--muted); line-height: 1.5; }
+    .role-tabs { display: flex; gap: 6px; margin-bottom: 28px; background: var(--surface); padding: 4px; border-radius: 10px; border: 1px solid var(--border); }
+    .role-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; border: none; border-radius: 7px; background: transparent; color: var(--muted); font-family: 'Instrument Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .role-tab.active { background: rgba(0,212,255,0.12); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+    .role-tab:hover:not(.active) { color: var(--text); }
+    .field-group { margin-bottom: 18px; }
+    .field-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 8px; }
+    .field-wrapper { position: relative; }
+    .field-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--muted); }
+    .field-input { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 12px 42px; border-radius: 10px; font-family: 'Instrument Sans', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+    .field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,0.08); }
+    .field-input::placeholder { color: #1a3545; }
+    .toggle-pw { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; padding: 4px; transition: color 0.2s; }
+    .toggle-pw:hover { color: var(--accent); }
+    .form-options { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .remember-me { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--muted); }
+    .remember-me input { display: none; }
+    .checkbox-box { width: 16px; height: 16px; border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    .remember-me input:checked + .checkbox-box { background: var(--accent); border-color: var(--accent); }
+    .forgot-link { font-size: 13px; color: var(--accent); text-decoration: none; transition: opacity 0.2s; }
+    .forgot-link:hover { opacity: 0.7; }
+    .btn-login { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--accent), var(--accent3)); border: none; border-radius: 10px; color: #030810; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; transition: all 0.2s; margin-bottom: 14px; }
+    .btn-login:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,212,255,0.25); }
+    .btn-text { display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .loader { width: 16px; height: 16px; border: 2px solid rgba(3,8,16,0.3); border-top-color: #030810; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-msg { display: none; padding: 12px 16px; background: rgba(255,51,102,0.08); border: 1px solid rgba(255,51,102,0.2); border-radius: 8px; font-size: 13px; color: #ff6680; margin-bottom: 16px; }
+    .divider { text-align: center; position: relative; margin: 20px 0; font-size: 12px; color: var(--muted); }
+    .divider::before { content: ''; position: absolute; left: 0; top: 50%; height: 1px; width: 42%; background: var(--border); }
+    .divider::after { content: ''; position: absolute; right: 0; top: 50%; height: 1px; width: 42%; background: var(--border); }
+    .btn-demo { width: 100%; padding: 12px; background: transparent; border: 1px solid var(--border); border-radius: 10px; color: var(--muted); font-family: 'Instrument Sans', sans-serif; font-size: 14px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-demo:hover { border-color: var(--accent); color: var(--accent); }
+    .footer-note { text-align: center; font-family: 'DM Mono', monospace; font-size: 10px; color: #1a3545; margin-top: 28px; }
+    .version-badge { position: fixed; bottom: 16px; right: 16px; font-family: 'DM Mono', monospace; font-size: 10px; color: #1a3545; z-index: 100; }
+  </style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<!-- LEFT PANEL -->
+<div class="left-panel">
+  <div class="road-scene">
+    <div class="road">
+      <div class="lane-line"></div>
+      <div class="lane-line"></div>
+      <div class="lane-line"></div>
+    </div>
+    <div class="car car-1"></div>
+    <div class="car car-2"></div>
+    <div class="car car-3"></div>
+    <div class="car car-4"></div>
+    <div class="car car-5"></div>
+  </div>
+  <div class="data-node"><div class="node-dot"></div>24,810 vehicles</div>
+  <div class="data-node orange"><div class="node-dot"></div>7 incidents</div>
+  <div class="data-node green"><div class="node-dot"></div>68.4 km/h avg</div>
+  <div class="data-node"><div class="node-dot"></div>142 signals live</div>
+  <div class="skyline">
+    <svg viewBox="0 0 800 220" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="80" width="800" height="140" fill="#060e18"/>
+      <rect x="20" y="60" width="50" height="160" fill="#0a1520"/>
+      <rect x="28" y="40" width="8" height="22" fill="#ff6b35" opacity="0.4"/>
+      <rect x="25" y="72" width="10" height="10" fill="#00d4ff" opacity="0.2"/>
+      <rect x="42" y="72" width="10" height="10" fill="#1a2d3f"/>
+      <rect x="85" y="90" width="35" height="130" fill="#0d1721"/>
+      <rect x="130" y="50" width="60" height="170" fill="#0a1520"/>
+      <rect x="138" y="62" width="10" height="10" fill="#1a2d3f"/>
+      <rect x="155" y="62" width="10" height="10" fill="#00ff88" opacity="0.2"/>
+      <rect x="172" y="62" width="10" height="10" fill="#1a2d3f"/>
+      <rect x="138" y="80" width="10" height="10" fill="#ffdd57" opacity="0.15"/>
+      <rect x="155" y="80" width="10" height="10" fill="#1a2d3f"/>
+      <rect x="200" y="70" width="40" height="150" fill="#0d1721"/>
+      <rect x="250" y="30" width="70" height="190" fill="#0a1520"/>
+      <rect x="258" y="45" width="12" height="12" fill="#00d4ff" opacity="0.25"/>
+      <rect x="278" y="45" width="12" height="12" fill="#1a2d3f"/>
+      <rect x="298" y="45" width="12" height="12" fill="#ff6b35" opacity="0.15"/>
+      <rect x="258" y="65" width="12" height="12" fill="#1a2d3f"/>
+      <rect x="278" y="65" width="7" height="7" fill="#1a2d3f"/>
+      <rect x="325" y="30" width="55" height="170" fill="#0a1520"/>
+      <rect x="325" y="22" width="55" height="10" fill="#0d1721"/>
+      <rect x="351" y="5" width="4" height="22" fill="#ff6b35" opacity="0.5"/>
+      <rect x="333" y="42" width="9" height="9" fill="#1a2d3f"/>
+      <rect x="349" y="42" width="9" height="9" fill="#00d4ff" opacity="0.3"/>
+      <rect x="365" y="42" width="9" height="9" fill="#1a2d3f"/>
+      <rect x="400" y="70" width="30" height="130" fill="#0d1721"/>
+      <rect x="445" y="45" width="45" height="155" fill="#0a1520"/>
+      <rect x="505" y="65" width="35" height="135" fill="#0d1721"/>
+      <rect x="555" y="35" width="60" height="165" fill="#0a1520"/>
+      <rect x="563" y="48" width="9" height="9" fill="#00ff88" opacity="0.25"/>
+      <rect x="630" y="55" width="40" height="145" fill="#0d1721"/>
+      <rect x="728" y="50" width="45" height="150" fill="#0d1721"/>
+    </svg>
+  </div>
+  <div class="left-hero-text">
+    <div class="logo-mark">FlowGrid</div>
+    <div class="logo-tagline">Traffic Intelligence Platform</div>
+    <p class="logo-sub">Real-time monitoring, adaptive signal control, and citywide flow optimization.</p>
+  </div>
+  <div class="status-bar">
+    <div class="status-item"><div class="status-dot green"></div><span>12 Cities Online</span></div>
+    <div class="status-item"><div class="status-dot yellow"></div><span>3 Alerts Active</span></div>
+    <div class="status-item"><div class="status-dot green"></div><span>API Nominal</span></div>
+  </div>
+</div>
+<!-- RIGHT PANEL -->
+<div class="right-panel">
+  <div class="form-container">
+    <div class="form-header">
+      <div class="form-eyebrow">Secure Access</div>
+      <h1 class="form-title">Welcome<br>back, <span>Operator</span></h1>
+      <p class="form-sub">Sign in to access your traffic command center.</p>
+    </div>
+    <div class="role-tabs">
+      <button class="role-tab active" onclick="selectRole(this,'admin')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>Admin
+      </button>
+    </div>
+    <div id="loginForm">
+      <div class="field-group">
+        <label class="field-label">User ID / Email</label>
+        <div class="field-wrapper">
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <input type="text" id="usernameInput" class="field-input" placeholder="operator@flowgrid.io" autocomplete="off"/>
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Password</label>
+        <div class="field-wrapper">
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <input type="password" id="passwordInput" class="field-input" placeholder="••••••••••••"/>
+          <button class="toggle-pw" onclick="togglePassword()" id="pwToggle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="eyeIcon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="form-options">
+        <label class="remember-me">
+          <input type="checkbox" id="rememberCheck"/>
+          <div class="checkbox-box"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+          Keep me signed in
+        </label>
+        <a href="#" class="forgot-link">Reset access</a>
+      </div>
+      <button class="btn-login" id="loginBtn" onclick="handleLogin()">
+        <span class="btn-text">
+          <div class="loader" id="loader"></div>
+          <span id="btnLabel">Access Dashboard</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </span>
+      </button>
+      <div class="error-msg" id="errorMsg"><strong>Access denied.</strong> Invalid credentials. Please check your username and password.</div>
+      <div class="divider">or</div>
+      <button class="btn-demo" onclick="fillDemo()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Enter with Demo Credentials
+      </button>
+    </div>
+    <div class="footer-note">FlowGrid v3.4.1 · ISO 39001 Certified · 256-bit Encrypted</div>
+  </div>
+</div>
+<div class="version-badge">FG · 2025</div>
+<script>
+  let selectedRole = 'admin';
+  function togglePassword() {
+    const input = document.getElementById('passwordInput');
+    const icon = document.getElementById('eyeIcon');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    } else {
+      input.type = 'password';
+      icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    }
+  }
+  function fillDemo() {
+    document.getElementById('usernameInput').value = 'admin';
+    document.getElementById('passwordInput').value = 'traffic123';
+  }
+  function handleLogin() {
+    const user = document.getElementById('usernameInput').value.trim();
+    const pass = document.getElementById('passwordInput').value.trim();
+    const btn = document.getElementById('loginBtn');
+    const loader = document.getElementById('loader');
+    const label = document.getElementById('btnLabel');
+    const error = document.getElementById('errorMsg');
+    error.style.display = 'none';
+    loader.style.display = 'block';
+    label.textContent = 'Authenticating...';
+    btn.style.pointerEvents = 'none';
+    setTimeout(() => {
+      loader.style.display = 'none';
+      if (user === 'admin' && pass === 'traffic123') {
+        label.textContent = 'Access Granted ✓';
+        btn.style.background = 'linear-gradient(135deg, #007a40, #00ff88)';
+        setTimeout(() => { window.location.href = 'home.html'; }, 800);
+      } else {
+        label.textContent = 'Access Dashboard';
+        btn.style.pointerEvents = 'auto';
+        error.style.display = 'block';
+      }
+    }, 1600);
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+</script>
+</body>
+</html>

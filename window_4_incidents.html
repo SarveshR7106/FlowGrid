@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FlowGrid — Active Incidents</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #050a0f; --surface: #0d1721; --surface2: #111f2e;
+      --border: #1a2d3f; --border2: #243d54;
+      --accent: #00d4ff; --accent2: #ff6b35; --accent3: #00ff88; --accent4: #ffdd57;
+      --text: #e8f4f8; --muted: #4a7a96; --danger: #ff3366;
+      --sidebar-w: 240px;
+    }
+    body { font-family: 'Instrument Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; overflow-x: hidden; }
+    body::before { content: ''; position: fixed; inset: 0; z-index: -1; background: radial-gradient(ellipse 600px 400px at 80% 0%, rgba(0,212,255,0.04), transparent), radial-gradient(ellipse 500px 400px at 10% 100%, rgba(0,255,136,0.03), transparent), var(--bg); }
+
+    /* SIDEBAR */
+    .sidebar { width: var(--sidebar-w); min-height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; overflow: hidden; }
+    .sidebar::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 200px; background: radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.08), transparent 70%); pointer-events: none; }
+    .sidebar-logo { padding: 24px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--accent3)); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-icon svg { width: 20px; height: 20px; stroke: #030810; }
+    .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; background: linear-gradient(90deg, var(--accent), var(--accent3)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .logo-version { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 2px; }
+    .nav-section { padding: 20px 12px 8px; }
+    .nav-section-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); padding: 0 8px; margin-bottom: 6px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: all 0.2s; margin-bottom: 2px; position: relative; color: var(--muted); font-size: 14px; text-decoration: none; border: 1px solid transparent; }
+    .nav-item:hover { background: rgba(0,212,255,0.05); color: var(--text); border-color: var(--border); }
+    .nav-item.active { background: linear-gradient(135deg, rgba(0,212,255,0.12), rgba(0,255,136,0.05)); color: var(--accent); border-color: rgba(0,212,255,0.2); }
+    .nav-item.active::before { content: ''; position: absolute; left: -12px; width: 3px; height: 60%; top: 20%; background: var(--accent); border-radius: 0 2px 2px 0; }
+    .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--danger); color: white; font-size: 10px; font-family: 'DM Mono', monospace; padding: 1px 6px; border-radius: 10px; }
+    .nav-badge.yellow { background: var(--accent4); color: #030810; }
+    .nav-badge.green { background: var(--accent3); color: #030810; }
+    .sidebar-footer { margin-top: auto; border-top: 1px solid var(--border); padding: 16px 12px; }
+    .user-card { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+    .user-card:hover { background: rgba(255,255,255,0.03); }
+    .avatar { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #006d8a, #00d4ff); display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: #030810; flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 13px; font-weight: 600; color: var(--text); }
+    .user-role { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); }
+
+    /* MAIN */
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+    .topbar { height: 64px; background: rgba(5,10,15,0.8); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 28px; gap: 16px; position: sticky; top: 0; z-index: 50; }
+    .topbar-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; }
+    .topbar-sub { font-size: 13px; color: var(--muted); margin-left: 4px; }
+    .topbar-spacer { flex: 1; }
+    .live-badge { display: flex; align-items: center; gap: 6px; background: rgba(255,51,102,0.08); border: 1px solid rgba(255,51,102,0.2); border-radius: 20px; padding: 5px 12px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--danger); }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 6px var(--danger); animation: livePulse 1.5s ease-in-out infinite; }
+    @keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .content { padding: 28px; flex: 1; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+    .page-title-group {}
+    .page-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; }
+    .page-sub { font-size: 13px; color: var(--muted); margin-top: 4px; font-family: 'DM Mono', monospace; letter-spacing: 1px; }
+
+    /* Stats row */
+    .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+    .stat-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 10px; flex: 1; min-width: 140px; }
+    .stat-chip-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .stat-chip-icon.red { background: rgba(255,51,102,0.12); color: var(--danger); }
+    .stat-chip-icon.orange { background: rgba(255,107,53,0.12); color: var(--accent2); }
+    .stat-chip-icon.yellow { background: rgba(255,221,87,0.12); color: var(--accent4); }
+    .stat-chip-icon.green { background: rgba(0,255,136,0.12); color: var(--accent3); }
+    .stat-chip-icon svg { width: 16px; height: 16px; }
+    .stat-chip-val { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; line-height: 1; }
+    .stat-chip-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* Filters */
+    .filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+    .filter-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 20px; font-size: 12px; font-family: 'Instrument Sans', sans-serif; cursor: pointer; transition: all 0.2s; }
+    .filter-btn:hover { border-color: var(--border2); color: var(--text); }
+    .filter-btn.active { background: rgba(0,212,255,0.08); border-color: rgba(0,212,255,0.3); color: var(--accent); }
+    .filter-btn.danger.active { background: rgba(255,51,102,0.08); border-color: rgba(255,51,102,0.3); color: var(--danger); }
+    .filter-btn.warning.active { background: rgba(255,107,53,0.08); border-color: rgba(255,107,53,0.3); color: var(--accent2); }
+    .filter-separator { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+    .filter-search { flex: 1; min-width: 200px; background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 7px 12px; border-radius: 8px; font-size: 13px; font-family: 'Instrument Sans', sans-serif; outline: none; transition: border-color 0.2s; }
+    .filter-search:focus { border-color: var(--accent); }
+    .filter-search::placeholder { color: var(--muted); }
+
+    /* Incident table area */
+    .incidents-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .incidents-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+    .incidents-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+    .badge-count { background: var(--danger); color: white; font-size: 11px; font-family: 'DM Mono', monospace; padding: 2px 8px; border-radius: 10px; }
+    .incidents-actions { display: flex; gap: 8px; }
+    .btn-sm { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 6px; font-size: 12px; font-family: 'Instrument Sans', sans-serif; cursor: pointer; transition: all 0.2s; }
+    .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+
+    .incident-row { display: flex; align-items: flex-start; gap: 14px; padding: 16px 20px; border-bottom: 1px solid var(--border); transition: background 0.15s; position: relative; }
+    .incident-row:hover { background: rgba(255,255,255,0.02); }
+    .incident-row:last-child { border-bottom: none; }
+    .incident-row.resolved { opacity: 0.45; }
+    .sev-bar { width: 3px; min-height: 48px; border-radius: 2px; flex-shrink: 0; margin-top: 2px; }
+    .sev-bar.critical { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+    .sev-bar.major { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+    .sev-bar.minor { background: var(--accent4); }
+    .sev-bar.resolved { background: var(--accent3); }
+    .inc-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+    .inc-icon.critical { background: rgba(255,51,102,0.12); color: var(--danger); }
+    .inc-icon.major { background: rgba(255,107,53,0.12); color: var(--accent2); }
+    .inc-icon.minor { background: rgba(255,221,87,0.12); color: var(--accent4); }
+    .inc-icon.resolved { background: rgba(0,255,136,0.12); color: var(--accent3); }
+    .inc-icon svg { width: 16px; height: 16px; }
+    .inc-body { flex: 1; }
+    .inc-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .inc-meta { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+    .inc-meta-item { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+    .inc-meta-item svg { width: 10px; height: 10px; }
+    .inc-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .inc-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+    .sev-badge { font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 8px; border-radius: 10px; font-weight: 600; letter-spacing: 0.5px; }
+    .sev-badge.critical { background: rgba(255,51,102,0.12); color: var(--danger); border: 1px solid rgba(255,51,102,0.2); }
+    .sev-badge.major { background: rgba(255,107,53,0.1); color: var(--accent2); border: 1px solid rgba(255,107,53,0.2); }
+    .sev-badge.minor { background: rgba(255,221,87,0.08); color: var(--accent4); border: 1px solid rgba(255,221,87,0.15); }
+    .sev-badge.resolved { background: rgba(0,255,136,0.08); color: var(--accent3); border: 1px solid rgba(0,255,136,0.15); }
+    .inc-time { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
+    .inc-actions { display: flex; gap: 6px; margin-top: 4px; }
+    .btn-action { padding: 5px 10px; border-radius: 6px; font-size: 11px; font-family: 'Instrument Sans', sans-serif; cursor: pointer; transition: all 0.2s; border: 1px solid; }
+    .btn-ack { background: rgba(0,212,255,0.06); border-color: rgba(0,212,255,0.2); color: var(--accent); }
+    .btn-ack:hover { background: rgba(0,212,255,0.12); }
+    .btn-resolve { background: rgba(0,255,136,0.06); border-color: rgba(0,255,136,0.2); color: var(--accent3); }
+    .btn-resolve:hover { background: rgba(0,255,136,0.12); }
+    .btn-resolved-tag { padding: 5px 10px; border-radius: 6px; font-size: 11px; font-family: 'DM Mono', monospace; background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.15); color: var(--accent3); cursor: default; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    </div>
+    <div>
+      <div class="logo-text">FlowGrid</div>
+      <div class="logo-version">v3.4.1 · LIVE</div>
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item" href="home.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item" href="map.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+      Traffic Map
+    </a>
+    <a class="nav-item active" href="window_4_incidents.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Incidents
+      <span class="nav-badge" id="navBadge">7</span>
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Control</div>
+    <a class="nav-item" href="window_5_signal_nodes.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      Signal Control
+      <span class="nav-badge yellow">5</span>
+    </a>
+    <a class="nav-item" href="window_3_field_units.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Field Units
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Analytics</div>
+    <a class="nav-item" href="window_6_flow_chart.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Flow Analytics
+    </a>
+    <a class="nav-item" href="window_2_kpi_cards.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      KPI Analytics
+    </a>
+    <a class="nav-item" href="window_7_sensor_health.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Sensors
+      <span class="nav-badge green">OK</span>
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">System</div>
+    <a class="nav-item" href="window_1_login.html" style="color:var(--danger)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Logout
+    </a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="avatar">OP</div>
+      <div class="user-info">
+        <div class="user-name">Demo Operator</div>
+        <div class="user-role">ADMIN · ZONE A</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Active Incidents</div>
+    </div>
+    <span class="topbar-sub">/ Requires Attention</span>
+    <div class="topbar-spacer"></div>
+    <div class="live-badge"><div class="live-dot"></div>LIVE MONITORING</div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="page-title-group">
+        <div class="page-title">Incident Management</div>
+        <div class="page-sub">REAL-TIME · ALL ZONES · AUTO-REFRESH 30s</div>
+      </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stat-chip">
+        <div class="stat-chip-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+        <div>
+          <div class="stat-chip-val" id="statTotal">7</div>
+          <div class="stat-chip-lbl">Total Active</div>
+        </div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-chip-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <div>
+          <div class="stat-chip-val" style="color:var(--danger)" id="statCritical">3</div>
+          <div class="stat-chip-lbl">Critical</div>
+        </div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-chip-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+        <div>
+          <div class="stat-chip-val" style="color:var(--accent2)" id="statMajor">2</div>
+          <div class="stat-chip-lbl">Major</div>
+        </div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-chip-icon yellow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div>
+          <div class="stat-chip-val" style="color:var(--accent4)" id="statMinor">2</div>
+          <div class="stat-chip-lbl">Minor</div>
+        </div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-chip-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div>
+          <div class="stat-chip-val" style="color:var(--accent3)" id="statResolved">4</div>
+          <div class="stat-chip-lbl">Resolved Today</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <span class="filter-label">Filter:</span>
+      <button class="filter-btn active" onclick="filterIncidents('all',this)">All</button>
+      <button class="filter-btn danger" onclick="filterIncidents('critical',this)">Critical</button>
+      <button class="filter-btn warning" onclick="filterIncidents('major',this)">Major</button>
+      <button class="filter-btn" onclick="filterIncidents('minor',this)">Minor</button>
+      <button class="filter-btn" onclick="filterIncidents('resolved',this)">Resolved</button>
+      <div class="filter-separator"></div>
+      <span class="filter-label">Zone:</span>
+      <button class="filter-btn active" onclick="filterZone('all',this)">All Zones</button>
+      <button class="filter-btn" onclick="filterZone('A',this)">Zone A</button>
+      <button class="filter-btn" onclick="filterZone('B',this)">Zone B</button>
+      <button class="filter-btn" onclick="filterZone('C',this)">Zone C</button>
+      <button class="filter-btn" onclick="filterZone('D',this)">Zone D</button>
+      <button class="filter-btn" onclick="filterZone('E',this)">Zone E</button>
+      <button class="filter-btn" onclick="filterZone('F',this)">Zone F</button>
+      <div class="filter-separator"></div>
+      <input type="text" class="filter-search" placeholder="Search incidents..." oninput="searchIncidents(this.value)" id="searchInput"/>
+    </div>
+
+    <!-- Incidents Card -->
+    <div class="incidents-card">
+      <div class="incidents-header">
+        <div class="incidents-title">
+          Live Incidents
+          <span class="badge-count" id="incidentCount">7</span>
+        </div>
+        <div class="incidents-actions">
+          <button class="btn-sm" onclick="acknowledgeAll()">Acknowledge All</button>
+          <button class="btn-sm" onclick="refreshIncidents()">↻ Refresh</button>
+        </div>
+      </div>
+      <div id="incidentList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const INCIDENTS = [
+  { id:1, title:'Multi-vehicle collision · NH-44', zone:'B', severity:'critical', type:'Collision', desc:'Lane 2 and 3 blocked. Emergency services deployed. Expect 40–60 min delay. Alternate via Ring Road recommended.', time:'4m ago', timestamp:4, icon:'collision', status:'active' },
+  { id:2, title:'Signal malfunction · Junction J-7', zone:'D', severity:'critical', type:'Signal Fault', desc:'Traffic signal offline. Manual override active. Traffic officer on site. Estimated repair time: 35 min.', time:'11m ago', timestamp:11, icon:'signal', status:'active' },
+  { id:3, title:'Road closure · Ring Road Sector 4', zone:'A', severity:'critical', type:'Road Work', desc:'Full lane closure for emergency utility repair. All traffic diverted via Diag-1. No ETA for reopening.', time:'23m ago', timestamp:23, icon:'closure', status:'active' },
+  { id:4, title:'Heavy congestion · OMR Northbound', zone:'F', severity:'major', type:'Congestion', desc:'Speed dropped to 18 km/h. Queue extends 2.4 km. Adaptive signal timing activated on feeder roads.', time:'35m ago', timestamp:35, icon:'congestion', status:'active' },
+  { id:5, title:'Waterlogging · GST Road km 12', zone:'E', severity:'major', type:'Hazard', desc:'Standing water depth 15 cm. Heavy vehicle advisory issued. Right lane passable. Speed limit 30 km/h.', time:'48m ago', timestamp:48, icon:'hazard', status:'active' },
+  { id:6, title:'Wrong-way driver reported · ECR', zone:'C', severity:'minor', type:'Safety', desc:'Report from sensors and camera. Alert broadcast to vehicles via VMS board. Police dispatched.', time:'1h 2m ago', timestamp:62, icon:'safety', status:'active' },
+  { id:7, title:'Debris on carriageway · Diag-1', zone:'B', severity:'minor', type:'Hazard', desc:'Fallen tree branch partially blocking left lane. Maintenance crew ETA 15 min. Lane advisory active.', time:'1h 18m ago', timestamp:78, icon:'hazard', status:'active' },
+];
+
+const ICONS = {
+  collision: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>`,
+  signal:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="7" r="2"/><circle cx="12" cy="13" r="2"/><circle cx="12" cy="19" r="1"/></svg>`,
+  closure:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  congestion:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  hazard:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  safety:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+};
+
+let activeFilter = 'all';
+let activeZone = 'all';
+let searchTerm = '';
+let incidentStates = {};
+INCIDENTS.forEach(i => incidentStates[i.id] = i.status);
+
+function filterIncidents(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-bar .filter-btn:not([onclick*="filterZone"])').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderIncidents();
+}
+function filterZone(z, btn) {
+  activeZone = z;
+  document.querySelectorAll('.filter-bar .filter-btn[onclick*="filterZone"]').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderIncidents();
+}
+function searchIncidents(v) {
+  searchTerm = v.toLowerCase();
+  renderIncidents();
+}
+function acknowledgeAll() {
+  INCIDENTS.forEach(i => { if(incidentStates[i.id] === 'active') incidentStates[i.id] = 'acknowledged'; });
+  renderIncidents();
+}
+function acknowledgeInc(id) {
+  incidentStates[id] = 'acknowledged';
+  renderIncidents();
+}
+function resolveInc(id) {
+  incidentStates[id] = 'resolved';
+  updateStats();
+  renderIncidents();
+}
+function refreshIncidents() {
+  // Simulate refresh — minor timestamp update
+  renderIncidents();
+}
+function updateStats() {
+  const active = INCIDENTS.filter(i => incidentStates[i.id] !== 'resolved');
+  document.getElementById('statTotal').textContent = active.length;
+  document.getElementById('statCritical').textContent = active.filter(i=>i.severity==='critical').length;
+  document.getElementById('statMajor').textContent = active.filter(i=>i.severity==='major').length;
+  document.getElementById('statMinor').textContent = active.filter(i=>i.severity==='minor').length;
+  const resolved = INCIDENTS.filter(i => incidentStates[i.id] === 'resolved').length + 4;
+  document.getElementById('statResolved').textContent = resolved;
+  document.getElementById('navBadge').textContent = active.length;
+}
+
+function renderIncidents() {
+  const list = document.getElementById('incidentList');
+  let filtered = INCIDENTS.filter(inc => {
+    const sev = activeFilter === 'all' ? true : (activeFilter === 'resolved' ? incidentStates[inc.id]==='resolved' : inc.severity === activeFilter);
+    const zone = activeZone === 'all' ? true : inc.zone === activeZone;
+    const search = searchTerm === '' ? true : (inc.title.toLowerCase().includes(searchTerm) || inc.desc.toLowerCase().includes(searchTerm) || inc.type.toLowerCase().includes(searchTerm));
+    return sev && zone && search;
+  });
+  document.getElementById('incidentCount').textContent = filtered.length;
+  if(filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state">NO INCIDENTS MATCH YOUR FILTERS</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(inc => {
+    const state = incidentStates[inc.id];
+    const isResolved = state === 'resolved';
+    return `
+    <div class="incident-row ${isResolved ? 'resolved' : ''}">
+      <div class="sev-bar ${isResolved ? 'resolved' : inc.severity}"></div>
+      <div class="inc-icon ${isResolved ? 'resolved' : inc.severity}">${ICONS[inc.icon]||ICONS.hazard}</div>
+      <div class="inc-body">
+        <div class="inc-title">${inc.title}</div>
+        <div class="inc-meta">
+          <span class="inc-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg> Zone ${inc.zone}</span>
+          <span class="inc-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${inc.time}</span>
+          <span class="inc-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg> ${inc.type}</span>
+        </div>
+        <div class="inc-desc">${inc.desc}</div>
+      </div>
+      <div class="inc-right">
+        <span class="sev-badge ${isResolved ? 'resolved' : inc.severity}">${isResolved ? 'RESOLVED' : inc.severity.toUpperCase()}</span>
+        <span class="inc-time">${inc.time}</span>
+        <div class="inc-actions">
+          ${isResolved ? '<span class="btn-resolved-tag">✓ Closed</span>' :
+            `<button class="btn-action btn-ack" onclick="acknowledgeInc(${inc.id})">${state==='acknowledged'?'✓ Ack\'d':'Acknowledge'}</button>
+             <button class="btn-action btn-resolve" onclick="resolveInc(${inc.id})">Resolve</button>`
+          }
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+renderIncidents();
+updateStats();
+
+// Auto-refresh stats counter
+setInterval(() => {
+  const el = document.getElementById('statTotal');
+  // Minor live fluctuation simulation
+}, 5000);
+</script>
+</body>
+</html>

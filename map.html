@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FlowGrid — World Traffic Map</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #050a0f;
+      --surface: #0d1721;
+      --surface2: #111f2e;
+      --border: #1a2d3f;
+      --border2: #243d54;
+      --accent: #00d4ff;
+      --accent2: #ff6b35;
+      --accent3: #00ff88;
+      --accent4: #ffdd57;
+      --text: #e8f4f8;
+      --muted: #4a7a96;
+      --danger: #ff3366;
+      --sidebar-w: 240px;
+    }
+    body {
+      font-family: 'Instrument Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR (same as home) ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      position: fixed; left: 0; top: 0; bottom: 0;
+      z-index: 1000;
+    }
+    .sidebar::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 200px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.08), transparent 70%);
+      pointer-events: none;
+    }
+    .sidebar-logo {
+      padding: 24px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent3));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-icon svg { width: 20px; height: 20px; stroke: #030810; }
+    .logo-text {
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px;
+      background: linear-gradient(90deg, var(--accent), var(--accent3));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .logo-version { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 2px; }
+    .nav-section { padding: 20px 12px 8px; }
+    .nav-section-label {
+      font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted); padding: 0 8px; margin-bottom: 6px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-radius: 8px; cursor: pointer; transition: all 0.2s; margin-bottom: 2px;
+      position: relative; color: var(--muted); font-size: 14px; text-decoration: none;
+      border: 1px solid transparent;
+    }
+    .nav-item:hover { background: rgba(0,212,255,0.05); color: var(--text); border-color: var(--border); }
+    .nav-item.active {
+      background: linear-gradient(135deg, rgba(0,212,255,0.12), rgba(0,255,136,0.05));
+      color: var(--accent); border-color: rgba(0,212,255,0.2);
+    }
+    .nav-item.active::before {
+      content: ''; position: absolute; left: -12px;
+      width: 3px; height: 60%; top: 20%;
+      background: var(--accent); border-radius: 0 2px 2px 0;
+    }
+    .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--danger); color: white; font-size: 10px; font-family: 'DM Mono', monospace; padding: 1px 6px; border-radius: 10px; }
+    .sidebar-footer { margin-top: auto; border-top: 1px solid var(--border); padding: 16px 12px; }
+    .user-card { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+    .user-card:hover { background: rgba(255,255,255,0.03); }
+    .avatar { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #006d8a, #00d4ff); display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: #030810; flex-shrink: 0; }
+    .user-name { font-size: 13px; font-weight: 600; color: var(--text); }
+    .user-role { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); }
+
+    /* ── MAIN ── */
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* TOPBAR */
+    .topbar {
+      height: 64px; background: rgba(5,10,15,0.95); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 24px; gap: 12px;
+      position: relative; z-index: 500; flex-shrink: 0;
+    }
+    .topbar-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; }
+    .topbar-sub { font-size: 13px; color: var(--muted); margin-left: 4px; }
+    .topbar-spacer { flex: 1; }
+    .live-badge { display: flex; align-items: center; gap: 6px; background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); border-radius: 20px; padding: 5px 12px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent3); }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent3); box-shadow: 0 0 6px var(--accent3); animation: livePulse 1.5s ease-in-out infinite; }
+    @keyframes livePulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* ── MAP AREA ── */
+    .map-wrapper { flex: 1; position: relative; overflow: hidden; }
+    #worldMap { width: 100%; height: 100%; }
+
+    /* Leaflet dark style override */
+    .leaflet-tile-pane { filter: brightness(0.4) saturate(0.3) hue-rotate(180deg); }
+    .leaflet-control-zoom { border: 1px solid var(--border) !important; }
+    .leaflet-control-zoom a {
+      background: var(--surface) !important; color: var(--accent) !important;
+      border-color: var(--border) !important;
+    }
+    .leaflet-control-zoom a:hover { background: var(--surface2) !important; }
+    .leaflet-control-attribution { background: rgba(13,23,33,0.8) !important; color: #2a4a5a !important; font-size: 9px !important; }
+    .leaflet-control-attribution a { color: var(--muted) !important; }
+
+    /* ── SEARCH PANEL ── */
+    .search-panel {
+      position: absolute;
+      top: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 400;
+      width: 520px;
+      max-width: calc(100vw - 280px);
+    }
+
+    .search-box {
+      display: flex; align-items: center;
+      background: rgba(13,23,33,0.95);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      padding: 6px 8px 6px 16px;
+      gap: 10px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,212,255,0.05);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .search-box:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 3px rgba(0,212,255,0.08);
+    }
+    .search-icon { color: var(--muted); flex-shrink: 0; }
+    .search-input {
+      flex: 1; background: transparent; border: none;
+      color: var(--text); font-family: 'Instrument Sans', sans-serif;
+      font-size: 15px; outline: none;
+    }
+    .search-input::placeholder { color: #2a4a5a; }
+    .search-btn {
+      background: linear-gradient(135deg, var(--accent), var(--accent3));
+      border: none; color: #030810;
+      font-family: 'Syne', sans-serif; font-weight: 700;
+      font-size: 13px; padding: 9px 18px;
+      border-radius: 8px; cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .search-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+    .search-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Suggestions dropdown */
+    .suggestions {
+      position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+      background: rgba(13,23,33,0.98);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      overflow: hidden;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+      display: none;
+    }
+    .suggestions.open { display: block; }
+    .suggestion-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; cursor: pointer;
+      transition: background 0.15s;
+      border-bottom: 1px solid rgba(26,45,63,0.5);
+    }
+    .suggestion-item:last-child { border-bottom: none; }
+    .suggestion-item:hover { background: rgba(0,212,255,0.05); }
+    .sugg-icon {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .sugg-name { font-size: 14px; font-weight: 500; }
+    .sugg-sub { font-size: 11px; color: var(--muted); }
+    .sugg-traffic {
+      margin-left: auto;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      padding: 3px 8px; border-radius: 10px;
+    }
+
+    /* ── TRAFFIC RESULT CARD ── */
+    .result-card {
+      position: absolute;
+      bottom: 28px; left: 50%; transform: translateX(-50%) translateY(120%);
+      width: 560px;
+      max-width: calc(100vw - 280px);
+      background: rgba(13,23,33,0.97);
+      border: 1px solid var(--border2);
+      border-radius: 16px;
+      overflow: hidden;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+      z-index: 400;
+      transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .result-card.visible { transform: translateX(-50%) translateY(0); }
+
+    .result-header {
+      display: flex; align-items: center; gap: 14px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .result-traffic-indicator {
+      width: 48px; height: 48px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 22px;
+    }
+    .result-city { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 20px; }
+    .result-country { font-size: 13px; color: var(--muted); }
+    .result-close {
+      margin-left: auto; background: transparent;
+      border: 1px solid var(--border); color: var(--muted);
+      width: 32px; height: 32px; border-radius: 6px;
+      cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .result-close:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* Traffic level bar */
+    .traffic-level-section { padding: 18px 20px 14px; }
+    .level-label {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px;
+    }
+    .level-name {
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px;
+    }
+    .level-index { font-family: 'DM Mono', monospace; font-size: 24px; font-weight: 500; }
+    .level-bar-track {
+      height: 10px; border-radius: 5px;
+      background: var(--surface2);
+      overflow: hidden;
+    }
+    .level-bar-fill {
+      height: 100%; border-radius: 5px;
+      transition: width 1s cubic-bezier(0.34, 1.2, 0.64, 1);
+    }
+    .level-scale {
+      display: flex; justify-content: space-between;
+      margin-top: 6px;
+      font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted);
+    }
+
+    /* Stats row */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 1px; background: var(--border);
+    }
+    .stat-cell {
+      background: var(--surface); padding: 14px 16px;
+      text-align: center;
+    }
+    .stat-value { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; }
+    .stat-label { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    /* Road breakdown */
+    .road-breakdown { padding: 16px 20px 18px; }
+    .road-title {
+      font-family: 'DM Mono', monospace; font-size: 9px;
+      letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .road-bars { display: flex; flex-direction: column; gap: 8px; }
+    .road-bar-row { display: flex; align-items: center; gap: 10px; }
+    .road-bar-name { font-size: 12px; color: var(--muted); width: 80px; flex-shrink: 0; }
+    .road-bar-track { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+    .road-bar-fill { height: 100%; border-radius: 3px; transition: width 1.2s ease; }
+    .road-bar-val { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); width: 36px; text-align: right; flex-shrink: 0; }
+
+    /* ── LAYER CONTROLS ── */
+    .layer-panel {
+      position: absolute;
+      top: 20px; right: 16px;
+      z-index: 400;
+    }
+    .map-mode-btn { padding:6px 14px; border-radius:6px; border:none; background:transparent; color:var(--muted); font-family:'DM Mono',monospace; font-size:11px; cursor:pointer; transition:all 0.2s; }
+    .map-mode-btn.active { background:rgba(0,212,255,0.12); color:var(--accent); }
+    .map-mode-btn:hover:not(.active) { color:var(--text); }
+    .layer-toggle {
+      background: rgba(13,23,33,0.95);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      padding: 12px;
+      backdrop-filter: blur(12px);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .layer-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .layer-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--muted);
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .layer-item:hover { color: var(--text); }
+    .layer-check {
+      width: 14px; height: 14px;
+      border: 1px solid var(--border2);
+      border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; flex-shrink: 0;
+    }
+    .layer-item.on .layer-check { background: var(--accent); border-color: var(--accent); }
+    .layer-item.on { color: var(--text); }
+    .layer-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── STATUS BAR (bottom) ── */
+    .status-strip {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 32px;
+      background: rgba(13,23,33,0.9);
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 16px; gap: 24px;
+      font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted);
+      z-index: 400;
+      backdrop-filter: blur(8px);
+    }
+    .status-item { display: flex; align-items: center; gap: 5px; }
+    .status-dot2 { width: 6px; height: 6px; border-radius: 50%; }
+    .status-spacer { flex: 1; }
+    .coord-display { font-size: 10px; color: var(--muted); }
+
+    /* Loading overlay */
+    .map-loading {
+      position: absolute; inset: 0; z-index: 450;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: var(--bg);
+      transition: opacity 0.5s;
+    }
+    .map-loading.hidden { opacity: 0; pointer-events: none; }
+    .loading-spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
+
+    /* Traffic overlay circles on map */
+    .traffic-overlay-marker { transition: all 0.3s; }
+
+    /* Tooltip */
+    .leaflet-popup-content-wrapper {
+      background: rgba(13,23,33,0.95) !important;
+      border: 1px solid var(--border2) !important;
+      border-radius: 8px !important;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+      backdrop-filter: blur(12px);
+    }
+    .leaflet-popup-content { color: var(--text) !important; font-family: 'Instrument Sans', sans-serif !important; margin: 12px 14px !important; }
+    .leaflet-popup-tip { background: rgba(13,23,33,0.95) !important; }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12h18M3 6l5 6-5 6"/><path d="M21 6l-5 6 5 6"/></svg>
+    </div>
+    <div>
+      <div class="logo-text">FlowGrid</div>
+      <div class="logo-version">v3.4.1 · LIVE</div>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item" href="home.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item active" href="map.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+      Traffic Map
+    </a>
+    <a class="nav-item" href="window_4_incidents.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Incidents
+      <span class="nav-badge">7</span>
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Control</div>
+    <a class="nav-item" href="window_5_signal_nodes.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2"/></svg>Signal Control<span class="nav-badge" style="background:var(--accent4);color:#030810">5</span></a>
+    <a class="nav-item" href="window_3_field_units.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Field Units</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Analytics</div>
+    <a class="nav-item" href="window_6_flow_chart.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Flow Analytics</a>
+    <a class="nav-item" href="window_2_kpi_cards.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>KPI Analytics</a>
+    <a class="nav-item" href="window_7_sensor_health.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>Sensors<span class="nav-badge" style="background:var(--accent3);color:#030810">OK</span></a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">System</div>
+    <a class="nav-item" href="window_1_login.html" style="color:var(--danger)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Logout</a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="avatar">OP</div>
+      <div>
+        <div class="user-name">Demo Operator</div>
+        <div class="user-role">ADMIN · ZONE A</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div>
+      <span class="topbar-title" id="topbarTitle">World Traffic Map</span>
+      <span class="topbar-sub" id="topbarSub">· Global Intelligence</span>
+    </div>
+    <div style="flex:1"></div>
+    <!-- View toggle -->
+    <div style="display:flex;gap:4px;background:var(--surface);padding:4px;border-radius:8px;border:1px solid var(--border)">
+      <button id="btnGlobal" onclick="setMapView('global')" style="padding:5px 12px;border-radius:5px;border:none;background:rgba(0,212,255,0.12);color:var(--accent);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer">🌍 Global</button>
+      <button id="btnLocal" onclick="setMapView('local')" style="padding:5px 12px;border-radius:5px;border:none;background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer">📍 City View</button>
+    </div>
+    <div class="live-badge" style="margin-left:12px"><div class="live-dot"></div>LIVE</div>
+    <div style="width:10px"></div>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)" id="clock"></div>
+  </div>
+
+  <!-- MAP AREA -->
+  <div class="map-wrapper">
+
+    <!-- Loading -->
+    <div class="map-loading" id="mapLoading">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Initializing Global Traffic Feed...</div>
+    </div>
+
+    <!-- Leaflet Map -->
+    <div id="worldMap"></div>
+
+    <!-- LOCAL CITY SVG MAP -->
+    <div id="localMapPanel" style="display:none;position:absolute;inset:0;background:#060e18;overflow:hidden;z-index:200">
+      <!-- Junction popup -->
+      <div id="jPopup" style="display:none;position:absolute;background:rgba(13,23,33,0.97);border:1px solid #243d54;border-radius:12px;padding:16px;min-width:220px;z-index:300;box-shadow:0 12px 40px rgba(0,0,0,0.6);pointer-events:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span id="jPopTitle" style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px"></span>
+          <button onclick="document.getElementById('jPopup').style.display='none'" style="background:none;border:none;color:#4a7a96;cursor:pointer;font-size:16px">✕</button>
+        </div>
+        <div id="jPopBody"></div>
+      </div>
+
+      <!-- Toggle buttons for city view -->
+      <div style="position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:250;display:flex;gap:6px;background:rgba(13,23,33,0.9);padding:6px;border-radius:10px;border:1px solid #243d54;backdrop-filter:blur(12px)">
+        <button class="map-mode-btn active" onclick="setCityMode('flow',this)">Flow</button>
+        <button class="map-mode-btn" onclick="setCityMode('heat',this)">Heat</button>
+        <button class="map-mode-btn" onclick="setCityMode('incidents',this)">Incidents</button>
+      </div>
+
+      <canvas id="cityCanvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+
+      <!-- Legend -->
+      <div style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:12px;background:rgba(13,23,33,0.88);border:1px solid #1a2d3f;padding:8px 16px;border-radius:8px;backdrop-filter:blur(8px)">
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:#4a7a96">FLOW:</span>
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:#00ff88">● Free</span>
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:#ffdd57">● Moderate</span>
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:#ff6b35">● Heavy</span>
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:#ff3366">● Blocked</span>
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:#4a7a96">| ⬤ Junctions</span>
+      </div>
+    </div>
+
+    <!-- Search Panel -->
+    <div class="search-panel">
+      <div class="search-box">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input class="search-input" id="searchInput" type="text"
+          placeholder="Search any city — New York, Tokyo, Mumbai, London..."
+          autocomplete="off"/>
+        <button class="search-btn" id="searchBtn" onclick="searchCity()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Analyze Traffic
+        </button>
+      </div>
+      <div class="suggestions" id="suggestions"></div>
+    </div>
+
+    <!-- Layer Controls -->
+    <div class="layer-panel">
+      <div class="layer-toggle">
+        <div class="layer-label">Map Layers</div>
+        <div class="layer-item on" onclick="toggleLayer(this,'congestion')">
+          <div class="layer-check"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="layer-swatch" style="background:#ff3366;"></div>
+          <span>Congestion</span>
+        </div>
+        <div class="layer-item on" onclick="toggleLayer(this,'signals')">
+          <div class="layer-check"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="layer-swatch" style="background:#ffdd57;"></div>
+          <span>Signals</span>
+        </div>
+        <div class="layer-item on" onclick="toggleLayer(this,'incidents')">
+          <div class="layer-check"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="layer-swatch" style="background:#ff6b35;"></div>
+          <span>Incidents</span>
+        </div>
+        <div class="layer-item" onclick="toggleLayer(this,'heatmap')">
+          <div class="layer-check"></div>
+          <div class="layer-swatch" style="background:linear-gradient(to right,#00ff88,#ff3366);border-radius:2px"></div>
+          <span>Heat Map</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result Card -->
+    <div class="result-card" id="resultCard">
+      <div class="result-header">
+        <div class="result-traffic-indicator" id="resultIcon"></div>
+        <div>
+          <div class="result-city" id="resultCity">—</div>
+          <div class="result-country" id="resultCountry">—</div>
+        </div>
+        <button class="result-close" onclick="closeResult()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="traffic-level-section">
+        <div class="level-label">
+          <div>
+            <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Traffic Level</div>
+            <div class="level-name" id="levelName">—</div>
+          </div>
+          <div class="level-index" id="levelIndex">—</div>
+        </div>
+        <div class="level-bar-track">
+          <div class="level-bar-fill" id="levelBar" style="width:0%"></div>
+        </div>
+        <div class="level-scale">
+          <span>FREE</span><span>MODERATE</span><span>HEAVY</span><span>CRITICAL</span>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-cell">
+          <div class="stat-value" id="statSpeed">—</div>
+          <div class="stat-label">Avg Speed</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-value" id="statDelay">—</div>
+          <div class="stat-label">Avg Delay</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-value" id="statVolume">—</div>
+          <div class="stat-label">Vehicles/hr</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-value" id="statJam">—</div>
+          <div class="stat-label">Jams</div>
+        </div>
+      </div>
+
+      <div class="road-breakdown">
+        <div class="road-title">Road Type Breakdown</div>
+        <div class="road-bars" id="roadBars"></div>
+      </div>
+    </div>
+
+    <!-- Status strip -->
+    <div class="status-strip">
+      <div class="status-item"><div class="status-dot2" style="background:#00ff88;box-shadow:0 0 4px #00ff88"></div>Map Feed Active</div>
+      <div class="status-item"><div class="status-dot2" style="background:#ffdd57;box-shadow:0 0 4px #ffdd57"></div>247 Cities Monitored</div>
+      <div class="status-item"><div class="status-dot2" style="background:#00d4ff;box-shadow:0 0 4px #00d4ff"></div>OpenStreetMap · TomTom Simulated</div>
+      <div class="status-spacer"></div>
+      <div class="coord-display" id="coordDisplay">Lat: — · Lon: —</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Clock ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toUTCString().slice(17,25) + ' UTC';
+}
+updateClock(); setInterval(updateClock, 1000);
+
+// ── City database ──
+const CITIES = [
+  { name:'New York', country:'United States', lat:40.7128, lng:-74.0060, emoji:'🗽', trafficIndex:82, speed:'28 km/h', delay:'14 min', volume:'42,800', jams:23, level:'Heavy', color:'#ff6b35' },
+  { name:'London', country:'United Kingdom', lat:51.5074, lng:-0.1278, emoji:'🎡', trafficIndex:75, speed:'32 km/h', delay:'11 min', volume:'38,500', jams:18, level:'Heavy', color:'#ff6b35' },
+  { name:'Tokyo', country:'Japan', lat:35.6762, lng:139.6503, emoji:'🗼', trafficIndex:88, speed:'22 km/h', delay:'19 min', volume:'54,200', jams:31, level:'Critical', color:'#ff3366' },
+  { name:'Mumbai', country:'India', lat:19.0760, lng:72.8777, emoji:'🌊', trafficIndex:94, speed:'18 km/h', delay:'24 min', volume:'61,000', jams:38, level:'Critical', color:'#ff3366' },
+  { name:'Paris', country:'France', lat:48.8566, lng:2.3522, emoji:'🗼', trafficIndex:68, speed:'35 km/h', delay:'9 min', volume:'32,400', jams:14, level:'Moderate', color:'#ffdd57' },
+  { name:'Los Angeles', country:'United States', lat:34.0522, lng:-118.2437, emoji:'🎬', trafficIndex:91, speed:'20 km/h', delay:'22 min', volume:'58,300', jams:34, level:'Critical', color:'#ff3366' },
+  { name:'Beijing', country:'China', lat:39.9042, lng:116.4074, emoji:'🏯', trafficIndex:86, speed:'24 km/h', delay:'18 min', volume:'52,000', jams:27, level:'Critical', color:'#ff3366' },
+  { name:'São Paulo', country:'Brazil', lat:-23.5505, lng:-46.6333, emoji:'🌿', trafficIndex:90, speed:'21 km/h', delay:'21 min', volume:'56,800', jams:32, level:'Critical', color:'#ff3366' },
+  { name:'Dubai', country:'UAE', lat:25.2048, lng:55.2708, emoji:'🌇', trafficIndex:58, speed:'52 km/h', delay:'5 min', volume:'24,100', jams:8, level:'Moderate', color:'#ffdd57' },
+  { name:'Sydney', country:'Australia', lat:-33.8688, lng:151.2093, emoji:'🦘', trafficIndex:45, speed:'64 km/h', delay:'3 min', volume:'18,700', jams:4, level:'Free Flow', color:'#00ff88' },
+  { name:'Berlin', country:'Germany', lat:52.5200, lng:13.4050, emoji:'🐻', trafficIndex:52, speed:'48 km/h', delay:'4 min', volume:'21,400', jams:7, level:'Moderate', color:'#ffdd57' },
+  { name:'Moscow', country:'Russia', lat:55.7558, lng:37.6176, emoji:'🏛️', trafficIndex:79, speed:'30 km/h', delay:'13 min', volume:'44,600', jams:21, level:'Heavy', color:'#ff6b35' },
+  { name:'Singapore', country:'Singapore', lat:1.3521, lng:103.8198, emoji:'🦁', trafficIndex:55, speed:'55 km/h', delay:'4 min', volume:'22,800', jams:6, level:'Moderate', color:'#ffdd57' },
+  { name:'Cairo', country:'Egypt', lat:30.0444, lng:31.2357, emoji:'🏺', trafficIndex:85, speed:'26 km/h', delay:'17 min', volume:'49,300', jams:29, level:'Critical', color:'#ff3366' },
+  { name:'Toronto', country:'Canada', lat:43.6532, lng:-79.3832, emoji:'🍁', trafficIndex:62, speed:'42 km/h', delay:'7 min', volume:'28,900', jams:12, level:'Moderate', color:'#ffdd57' },
+  { name:'Delhi', country:'India', lat:28.7041, lng:77.1025, emoji:'🕌', trafficIndex:96, speed:'16 km/h', delay:'28 min', volume:'65,200', jams:42, level:'Critical', color:'#ff3366' },
+  { name:'Seoul', country:'South Korea', lat:37.5665, lng:126.9780, emoji:'🏙️', trafficIndex:72, speed:'34 km/h', delay:'10 min', volume:'36,100', jams:16, level:'Heavy', color:'#ff6b35' },
+  { name:'Mexico City', country:'Mexico', lat:19.4326, lng:-99.1332, emoji:'🌮', trafficIndex:88, speed:'23 km/h', delay:'20 min', volume:'53,700', jams:30, level:'Critical', color:'#ff3366' },
+  { name:'Istanbul', country:'Turkey', lat:41.0082, lng:28.9784, emoji:'🕌', trafficIndex:80, speed:'29 km/h', delay:'15 min', volume:'45,800', jams:24, level:'Heavy', color:'#ff6b35' },
+  { name:'Bangkok', country:'Thailand', lat:13.7563, lng:100.5018, emoji:'🏯', trafficIndex:83, speed:'27 km/h', delay:'16 min', volume:'47,400', jams:25, level:'Heavy', color:'#ff6b35' },
+  { name:'Chicago', country:'United States', lat:41.8781, lng:-87.6298, emoji:'🌬️', trafficIndex:71, speed:'36 km/h', delay:'10 min', volume:'35,600', jams:15, level:'Heavy', color:'#ff6b35' },
+  { name:'Johannesburg', country:'South Africa', lat:-26.2041, lng:28.0473, emoji:'💎', trafficIndex:66, speed:'38 km/h', delay:'8 min', volume:'30,200', jams:11, level:'Moderate', color:'#ffdd57' },
+  { name:'Amsterdam', country:'Netherlands', lat:52.3676, lng:4.9041, emoji:'🌷', trafficIndex:42, speed:'70 km/h', delay:'2 min', volume:'16,500', jams:3, level:'Free Flow', color:'#00ff88' },
+  { name:'Mumbai', country:'India', lat:19.0760, lng:72.8777, emoji:'🌊', trafficIndex:94, speed:'18 km/h', delay:'24 min', volume:'61,000', jams:38, level:'Critical', color:'#ff3366' },
+  { name:'Chennai', country:'India', lat:13.0827, lng:80.2707, emoji:'🌊', trafficIndex:78, speed:'31 km/h', delay:'12 min', volume:'41,200', jams:19, level:'Heavy', color:'#ff6b35' },
+  { name:'Bangalore', country:'India', lat:12.9716, lng:77.5946, emoji:'🌿', trafficIndex:85, speed:'25 km/h', delay:'18 min', volume:'50,100', jams:28, level:'Critical', color:'#ff3366' },
+];
+
+// ── Init Map ──
+// ── Map View Toggle ──
+function setMapView(mode) {
+  const globalEl = document.getElementById('worldMap');
+  const localEl = document.getElementById('localMapPanel');
+  const searchPanel = document.querySelector('.search-panel');
+  const layerPanel = document.querySelector('.layer-panel');
+  const resultCard = document.querySelector('.result-card');
+  const btnG = document.getElementById('btnGlobal');
+  const btnL = document.getElementById('btnLocal');
+  if(mode === 'local') {
+    globalEl.style.display = 'none';
+    localEl.style.display = 'block';
+    if(searchPanel) searchPanel.style.display = 'none';
+    if(layerPanel) layerPanel.style.display = 'none';
+    if(resultCard) resultCard.style.display = 'none';
+    btnG.style.background = 'transparent'; btnG.style.color = 'var(--muted)';
+    btnL.style.background = 'rgba(0,212,255,0.12)'; btnL.style.color = 'var(--accent)';
+    document.getElementById('topbarTitle').textContent = 'City Junction Map';
+    document.getElementById('topbarSub').textContent = '· Chennai Metropolitan Network';
+    drawCityMap();
+  } else {
+    globalEl.style.display = 'block';
+    localEl.style.display = 'none';
+    if(searchPanel) searchPanel.style.display = 'block';
+    if(layerPanel) layerPanel.style.display = 'block';
+    btnG.style.background = 'rgba(0,212,255,0.12)'; btnG.style.color = 'var(--accent)';
+    btnL.style.background = 'transparent'; btnL.style.color = 'var(--muted)';
+    document.getElementById('topbarTitle').textContent = 'World Traffic Map';
+    document.getElementById('topbarSub').textContent = '· Global Intelligence';
+  }
+}
+
+// ── City Map ──
+const JUNCTIONS = [
+  { id:'J-1', name:'Anna Salai Hub', x:0.38, y:0.42, vol:1240, speed:52, status:'heavy', desc:'NH-44 & Ring Road intersection · 4 approaches · Adaptive signals active' },
+  { id:'J-2', name:'Guindy Interchange', x:0.30, y:0.55, vol:980, speed:68, status:'moderate', desc:'Elevated flyover junction · OMR feeder · 3 lanes each direction' },
+  { id:'J-3', name:'OMR Perungudi', x:0.62, y:0.48, vol:1640, speed:34, status:'blocked', desc:'IT corridor peak congestion · Emergency advisory active · Detour via Diag-1' },
+  { id:'J-4', name:'GST Road South', x:0.35, y:0.75, vol:870, speed:74, status:'free', desc:'GST & Tambaram Rd merge · Smooth flow reported · Green corridor active' },
+  { id:'J-5', name:'ECR Thiruvanmiyur', x:0.72, y:0.30, vol:540, speed:88, status:'free', desc:'Coastal expressway node · Tourist peak on weekends · Sensors nominal' },
+  { id:'J-6', name:'Ring Road West', x:0.22, y:0.32, vol:1120, speed:48, status:'heavy', desc:'Ring road & Diag-2 crossover · Signal overrides active · Queue 42 vehicles' },
+];
+
+const ROADS = [
+  { label:'NH-44', x1:0.10, y1:0.42, x2:0.90, y2:0.42, status:'heavy' },
+  { label:'OMR', x1:0.62, y1:0.10, x2:0.70, y2:0.90, status:'blocked' },
+  { label:'GST', x1:0.15, y1:0.75, x2:0.85, y2:0.75, status:'free' },
+  { label:'Ring', x1:0.22, y1:0.20, x2:0.22, y2:0.85, status:'heavy' },
+  { label:'ECR', x1:0.55, y1:0.10, x2:0.90, y2:0.55, status:'free' },
+  { label:'Diag-1', x1:0.30, y1:0.10, x2:0.70, y2:0.80, status:'moderate' },
+  { label:'Diag-2', x1:0.10, y1:0.65, x2:0.50, y2:0.15, status:'moderate' },
+];
+
+const STATUS_COLORS = { free:'#00ff88', moderate:'#ffdd57', heavy:'#ff6b35', blocked:'#ff3366' };
+
+let cityMode = 'flow';
+let animOffset = 0;
+
+function setCityMode(mode, btn) {
+  cityMode = mode;
+  document.querySelectorAll('.map-mode-btn').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  drawCityMap();
+}
+
+function drawCityMap() {
+  const canvas = document.getElementById('cityCanvas');
+  if(!canvas) return;
+  const wrapper = document.getElementById('localMapPanel');
+  canvas.width = wrapper.offsetWidth;
+  canvas.height = wrapper.offsetHeight;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#060e18';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw grid
+  ctx.strokeStyle = 'rgba(26,45,63,0.4)';
+  ctx.lineWidth = 0.5;
+  for(let x=0; x<W; x+=60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for(let y=0; y<H; y+=60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  // Draw roads
+  ROADS.forEach(r => {
+    const x1=r.x1*W, y1=r.y1*H, x2=r.x2*W, y2=r.y2*H;
+    let color = STATUS_COLORS[r.status];
+    if(cityMode === 'heat') {
+      // Heat: opacity based on volume
+      color = r.status === 'blocked' ? '#ff3366' : r.status === 'heavy' ? '#ff6b35' : r.status === 'moderate' ? '#ffdd57' : '#00ff88';
+    } else if(cityMode === 'incidents') {
+      color = r.status === 'blocked' || r.status === 'heavy' ? '#ff3366' : '#1a2d3f';
+    }
+
+    // Road shadow/glow
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = color + '55';
+    ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+
+    ctx.shadowBlur = 6;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Road label
+    const mx=(x1+x2)/2, my=(y1+y2)/2;
+    const angle = Math.atan2(y2-y1, x2-x1);
+    ctx.save();
+    ctx.translate(mx, my);
+    ctx.rotate(angle);
+    ctx.fillStyle = 'rgba(13,23,33,0.8)';
+    ctx.fillRect(-20,-10,40,16);
+    ctx.fillStyle = '#e8f4f8';
+    ctx.font = 'bold 10px "DM Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(r.label, 0, 3);
+    ctx.restore();
+  });
+
+  // Draw animated traffic flow (dots)
+  if(cityMode === 'flow') {
+    ROADS.forEach((r, ri) => {
+      const x1=r.x1*W, y1=r.y1*H, x2=r.x2*W, y2=r.y2*H;
+      const len = Math.hypot(x2-x1, y2-y1);
+      const speed = r.status === 'free' ? 0.018 : r.status === 'moderate' ? 0.012 : r.status === 'heavy' ? 0.007 : 0.003;
+      for(let d=0; d<3; d++) {
+        const t = ((animOffset * speed + d/3 + ri*0.2) % 1);
+        const tx = x1 + (x2-x1)*t, ty = y1 + (y2-y1)*t;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 3, 0, Math.PI*2);
+        ctx.fillStyle = STATUS_COLORS[r.status];
+        ctx.shadowColor = STATUS_COLORS[r.status];
+        ctx.shadowBlur = 8;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    });
+  }
+
+  // Draw junctions
+  JUNCTIONS.forEach(j => {
+    const x = j.x * W, y = j.y * H;
+    const col = STATUS_COLORS[j.status];
+
+    // Outer ring pulse
+    ctx.beginPath();
+    ctx.arc(x, y, 18, 0, Math.PI*2);
+    ctx.fillStyle = col + '15';
+    ctx.fill();
+
+    // Inner circle
+    ctx.beginPath();
+    ctx.arc(x, y, 10, 0, Math.PI*2);
+    ctx.fillStyle = '#0d1721';
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // ID label
+    ctx.fillStyle = col;
+    ctx.font = 'bold 8px "DM Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(j.id, x, y);
+
+    // Name label
+    ctx.fillStyle = '#e8f4f8';
+    ctx.font = '10px "Instrument Sans", sans-serif';
+    ctx.fillText(j.name, x, y + 24);
+  });
+}
+
+// Handle junction clicks
+function handleCityClick(e) {
+  const canvas = document.getElementById('cityCanvas');
+  if(!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const W = canvas.width, H = canvas.height;
+
+  for(const j of JUNCTIONS) {
+    const jx = j.x * W, jy = j.y * H;
+    if(Math.hypot(mx - jx, my - jy) < 18) {
+      const popup = document.getElementById('jPopup');
+      const col = STATUS_COLORS[j.status];
+      document.getElementById('jPopTitle').textContent = j.id + ' · ' + j.name;
+      document.getElementById('jPopBody').innerHTML = `
+        <div style="margin-bottom:8px">
+          <span style="font-family:'DM Mono',monospace;font-size:10px;padding:2px 8px;border-radius:10px;background:${col}18;color:${col};border:1px solid ${col}33">${j.status.toUpperCase()}</span>
+        </div>
+        <div style="font-size:12px;color:#4a7a96;line-height:1.5;margin-bottom:10px">${j.desc}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:'DM Mono',monospace;font-size:11px">
+          <div style="background:rgba(0,0,0,0.3);padding:8px;border-radius:6px"><div style="color:#4a7a96;margin-bottom:2px">VOL/HR</div><div style="color:#e8f4f8;font-size:14px;font-weight:700">${j.vol.toLocaleString()}</div></div>
+          <div style="background:rgba(0,0,0,0.3);padding:8px;border-radius:6px"><div style="color:#4a7a96;margin-bottom:2px">SPEED</div><div style="color:${col};font-size:14px;font-weight:700">${j.speed} km/h</div></div>
+        </div>`;
+      // Position popup near click
+      const panelRect = document.getElementById('localMapPanel').getBoundingClientRect();
+      let px = e.clientX - panelRect.left + 20, py = e.clientY - panelRect.top - 10;
+      if(px + 240 > panelRect.width) px -= 280;
+      if(py + 200 > panelRect.height) py -= 200;
+      popup.style.left = px + 'px'; popup.style.top = py + 'px';
+      popup.style.display = 'block';
+      return;
+    }
+  }
+  document.getElementById('jPopup').style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('cityCanvas');
+  if(canvas) canvas.addEventListener('click', handleCityClick);
+});
+
+// Animate city map
+let animFrame;
+function animateCityMap() {
+  animOffset = (animOffset + 1) % 10000;
+  const panel = document.getElementById('localMapPanel');
+  if(panel && panel.style.display === 'block' && cityMode === 'flow') {
+    drawCityMap();
+  }
+  animFrame = requestAnimationFrame(() => setTimeout(animateCityMap, 60));
+}
+animateCityMap();
+
+// Handle resize
+window.addEventListener('resize', () => {
+  const panel = document.getElementById('localMapPanel');
+  if(panel && panel.style.display === 'block') drawCityMap();
+});
+
+let map, searchMarker, trafficCircles = [], heatmapLayer = null;
+
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    map = L.map('worldMap', {
+      center: [20, 10],
+      zoom: 3,
+      minZoom: 2,
+      maxZoom: 16,
+      zoomControl: true,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(map);
+
+    // Track cursor position
+    map.on('mousemove', e => {
+      document.getElementById('coordDisplay').textContent =
+        `Lat: ${e.latlng.lat.toFixed(4)} · Lon: ${e.latlng.lng.toFixed(4)}`;
+    });
+
+    // Add city traffic overlays
+    addCityOverlays();
+
+    document.getElementById('mapLoading').classList.add('hidden');
+  }, 800);
+});
+
+function addCityOverlays() {
+  CITIES.forEach(city => {
+    const radius = 30000 + city.trafficIndex * 5000;
+    const circle = L.circle([city.lat, city.lng], {
+      radius: radius,
+      color: city.color,
+      fillColor: city.color,
+      fillOpacity: 0.12,
+      weight: 1.5,
+      opacity: 0.5,
+    }).addTo(map);
+
+    circle.bindPopup(`
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:4px">${city.emoji} ${city.name}</div>
+      <div style="font-size:12px;color:#4a7a96;margin-bottom:8px">${city.country}</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="background:${city.color}22;color:${city.color};padding:3px 8px;border-radius:10px;font-size:11px;font-family:'DM Mono',monospace">${city.level}</span>
+        <span style="font-size:12px;color:#4a7a96">Index: ${city.trafficIndex}</span>
+      </div>
+    `);
+
+    circle.on('click', () => showCityResult(city));
+    trafficCircles.push(circle);
+  });
+}
+
+// ── Search ──
+const searchInput = document.getElementById('searchInput');
+const suggestionsEl = document.getElementById('suggestions');
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase().trim();
+  if (q.length < 2) { suggestionsEl.classList.remove('open'); return; }
+
+  const matches = CITIES.filter(c =>
+    c.name.toLowerCase().includes(q) || c.country.toLowerCase().includes(q)
+  ).slice(0, 6);
+
+  if (matches.length === 0) { suggestionsEl.classList.remove('open'); return; }
+
+  suggestionsEl.innerHTML = matches.map(c => `
+    <div class="suggestion-item" onclick="selectCity('${c.name}')">
+      <div class="sugg-icon" style="background:${c.color}22">${c.emoji}</div>
+      <div>
+        <div class="sugg-name">${c.name}</div>
+        <div class="sugg-sub">${c.country}</div>
+      </div>
+      <span class="sugg-traffic" style="background:${c.color}22;color:${c.color}">${c.level}</span>
+    </div>
+  `).join('');
+  suggestionsEl.classList.add('open');
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-panel')) suggestionsEl.classList.remove('open');
+});
+
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') searchCity();
+});
+
+function selectCity(name) {
+  searchInput.value = name;
+  suggestionsEl.classList.remove('open');
+  searchCity();
+}
+
+function searchCity() {
+  const q = searchInput.value.trim().toLowerCase();
+  if (!q) return;
+  suggestionsEl.classList.remove('open');
+
+  const city = CITIES.find(c =>
+    c.name.toLowerCase() === q ||
+    c.name.toLowerCase().includes(q)
+  );
+
+  if (!city) {
+    // Generate random data for unknown cities
+    const idx = Math.floor(Math.random() * 100);
+    const levels = [
+      {level:'Free Flow',color:'#00ff88',speed:'72 km/h',delay:'1 min',jams:1},
+      {level:'Moderate',color:'#ffdd57',speed:'45 km/h',delay:'6 min',jams:9},
+      {level:'Heavy',color:'#ff6b35',speed:'28 km/h',delay:'14 min',jams:18},
+      {level:'Critical',color:'#ff3366',speed:'15 km/h',delay:'28 min',jams:35},
+    ];
+    const l = idx < 25 ? levels[0] : idx < 55 ? levels[1] : idx < 80 ? levels[2] : levels[3];
+    showResult({
+      name: searchInput.value.trim(),
+      country: 'Global Network',
+      emoji: '🌍',
+      trafficIndex: idx,
+      ...l,
+      volume: (10000 + Math.floor(Math.random()*50000)).toLocaleString(),
+    });
+    return;
+  }
+
+  map.flyTo([city.lat, city.lng], 12, { duration: 1.5 });
+  showCityResult(city);
+}
+
+function showCityResult(city) {
+  searchInput.value = city.name;
+  showResult(city);
+
+  // Add/move search marker
+  if (searchMarker) map.removeLayer(searchMarker);
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:40px;height:40px;
+      background:${city.color};
+      border-radius:50% 50% 50% 0;
+      transform:rotate(-45deg);
+      border:3px solid white;
+      box-shadow:0 4px 16px ${city.color}80;
+      display:flex;align-items:center;justify-content:center;
+    "><div style="transform:rotate(45deg);font-size:16px">${city.emoji}</div></div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+  });
+  searchMarker = L.marker([city.lat, city.lng], { icon }).addTo(map);
+}
+
+function showResult(city) {
+  const card = document.getElementById('resultCard');
+
+  // Populate
+  document.getElementById('resultIcon').style.cssText = `background:${city.color}22;font-size:22px`;
+  document.getElementById('resultIcon').textContent = city.emoji;
+  document.getElementById('resultCity').textContent = city.name;
+  document.getElementById('resultCountry').textContent = city.country;
+  document.getElementById('levelName').textContent = city.level;
+  document.getElementById('levelName').style.color = city.color;
+  document.getElementById('levelIndex').textContent = city.trafficIndex || '—';
+  document.getElementById('levelIndex').style.color = city.color;
+  document.getElementById('statSpeed').textContent = city.speed;
+  document.getElementById('statDelay').textContent = city.delay;
+  document.getElementById('statVolume').textContent = city.volume;
+  document.getElementById('statJam').textContent = city.jams;
+
+  // Bar fill
+  const pct = Math.min(100, city.trafficIndex || 50);
+  setTimeout(() => {
+    document.getElementById('levelBar').style.width = pct + '%';
+    document.getElementById('levelBar').style.background =
+      `linear-gradient(to right, #00ff88, ${city.color})`;
+  }, 100);
+
+  // Road breakdown
+  const roads = [
+    { name:'Highways', pct: Math.max(10, 100-pct+20), color: '#00d4ff' },
+    { name:'Arterials', pct: Math.min(95, pct+10), color: city.color },
+    { name:'Urban', pct: Math.min(99, pct+20), color: city.color === '#ff3366' ? '#ff3366' : '#ff6b35' },
+    { name:'Residential', pct: Math.max(5, pct-30), color: '#ffdd57' },
+  ];
+  document.getElementById('roadBars').innerHTML = roads.map(r => `
+    <div class="road-bar-row">
+      <div class="road-bar-name">${r.name}</div>
+      <div class="road-bar-track">
+        <div class="road-bar-fill" style="width:${r.pct}%;background:${r.color}"></div>
+      </div>
+      <div class="road-bar-val">${r.pct}%</div>
+    </div>
+  `).join('');
+
+  card.classList.add('visible');
+}
+
+function closeResult() {
+  document.getElementById('resultCard').classList.remove('visible');
+  document.getElementById('levelBar').style.width = '0%';
+}
+
+// ── Layer toggle ──
+function toggleLayer(item, layer) {
+  item.classList.toggle('on');
+  const on = item.classList.contains('on');
+  // Visual feedback – toggle circle opacity
+  trafficCircles.forEach(c => {
+    if (layer === 'congestion') {
+      c.setStyle({ fillOpacity: on ? 0.12 : 0, opacity: on ? 0.5 : 0 });
+    }
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FlowGrid — Signal Control</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #050a0f; --surface: #0d1721; --surface2: #111f2e;
+      --border: #1a2d3f; --border2: #243d54;
+      --accent: #00d4ff; --accent2: #ff6b35; --accent3: #00ff88; --accent4: #ffdd57;
+      --text: #e8f4f8; --muted: #4a7a96; --danger: #ff3366;
+      --sidebar-w: 240px;
+    }
+    body { font-family: 'Instrument Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; overflow-x: hidden; }
+    body::before { content: ''; position: fixed; inset: 0; z-index: -1; background: radial-gradient(ellipse 600px 400px at 80% 0%, rgba(0,212,255,0.04), transparent), radial-gradient(ellipse 500px 400px at 10% 100%, rgba(0,255,136,0.03), transparent), var(--bg); }
+
+    /* SIDEBAR */
+    .sidebar { width: var(--sidebar-w); min-height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; overflow: hidden; }
+    .sidebar::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 200px; background: radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.08), transparent 70%); pointer-events: none; }
+    .sidebar-logo { padding: 24px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--accent3)); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-icon svg { width: 20px; height: 20px; stroke: #030810; }
+    .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; background: linear-gradient(90deg, var(--accent), var(--accent3)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .logo-version { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 2px; }
+    .nav-section { padding: 20px 12px 8px; }
+    .nav-section-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); padding: 0 8px; margin-bottom: 6px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: all 0.2s; margin-bottom: 2px; position: relative; color: var(--muted); font-size: 14px; text-decoration: none; border: 1px solid transparent; }
+    .nav-item:hover { background: rgba(0,212,255,0.05); color: var(--text); border-color: var(--border); }
+    .nav-item.active { background: linear-gradient(135deg, rgba(0,212,255,0.12), rgba(0,255,136,0.05)); color: var(--accent); border-color: rgba(0,212,255,0.2); }
+    .nav-item.active::before { content: ''; position: absolute; left: -12px; width: 3px; height: 60%; top: 20%; background: var(--accent); border-radius: 0 2px 2px 0; }
+    .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--danger); color: white; font-size: 10px; font-family: 'DM Mono', monospace; padding: 1px 6px; border-radius: 10px; }
+    .nav-badge.yellow { background: var(--accent4); color: #030810; }
+    .nav-badge.green { background: var(--accent3); color: #030810; }
+    .sidebar-footer { margin-top: auto; border-top: 1px solid var(--border); padding: 16px 12px; }
+    .user-card { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+    .user-card:hover { background: rgba(255,255,255,0.03); }
+    .avatar { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #006d8a, #00d4ff); display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: #030810; flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 13px; font-weight: 600; color: var(--text); }
+    .user-role { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); }
+
+    /* MAIN */
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+    .topbar { height: 64px; background: rgba(5,10,15,0.8); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 28px; gap: 16px; position: sticky; top: 0; z-index: 50; }
+    .topbar-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; }
+    .topbar-sub { font-size: 13px; color: var(--muted); margin-left: 4px; }
+    .topbar-spacer { flex: 1; }
+    .live-badge { display: flex; align-items: center; gap: 6px; background: rgba(255,221,87,0.08); border: 1px solid rgba(255,221,87,0.2); border-radius: 20px; padding: 5px 12px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent4); }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent4); box-shadow: 0 0 6px var(--accent4); animation: livePulse 1.5s ease-in-out infinite; }
+    @keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .content { padding: 28px; flex: 1; }
+    .page-header { margin-bottom: 24px; }
+    .page-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; }
+    .page-sub { font-size: 13px; color: var(--muted); margin-top: 4px; font-family: 'DM Mono', monospace; letter-spacing: 1px; }
+
+    /* Stats */
+    .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+    .stat-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; display: flex; align-items: center; gap: 12px; flex: 1; min-width: 140px; }
+    .stat-chip::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .stat-val { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 24px; line-height: 1; }
+    .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    /* Signal Grid */
+    .signal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+
+    .signal-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.2s, transform 0.15s; }
+    .signal-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+    .signal-card.override { border-color: rgba(255,221,87,0.4); }
+    .signal-card-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+    .signal-id { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 1px; margin-bottom: 3px; }
+    .signal-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+    .signal-zone { font-size: 11px; color: var(--muted); }
+    .signal-body { display: flex; align-items: center; gap: 16px; padding: 16px 18px; }
+
+    /* Traffic light */
+    .traffic-light { width: 36px; background: #080e18; border: 1px solid var(--border); border-radius: 20px; padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+    .tl-bulb { width: 20px; height: 20px; border-radius: 50%; transition: all 0.4s; position: relative; }
+    .tl-bulb.red { background: #300; }
+    .tl-bulb.red.active { background: #ff3366; box-shadow: 0 0 12px 4px rgba(255,51,102,0.6); animation: bulbPulse 1.2s ease-in-out infinite; }
+    .tl-bulb.yellow { background: #2a2000; }
+    .tl-bulb.yellow.active { background: #ffdd57; box-shadow: 0 0 12px 4px rgba(255,221,87,0.5); animation: bulbPulse 0.8s ease-in-out infinite; }
+    .tl-bulb.green { background: #001a0d; }
+    .tl-bulb.green.active { background: #00ff88; box-shadow: 0 0 12px 4px rgba(0,255,136,0.5); animation: bulbPulse 2s ease-in-out infinite; }
+    @keyframes bulbPulse { 0%,100%{opacity:1;} 50%{opacity:0.7;} }
+
+    .signal-info { flex: 1; }
+    .sig-phase-label { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 2px; }
+    .sig-phase-val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+    .sig-phase-val.red-phase { color: var(--danger); }
+    .sig-phase-val.yellow-phase { color: var(--accent4); }
+    .sig-phase-val.green-phase { color: var(--accent3); }
+
+    .sig-timer { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+    .sig-timer-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .sig-timer-fill { height: 100%; border-radius: 2px; transition: width 1s linear; }
+    .sig-timer-fill.red { background: var(--danger); }
+    .sig-timer-fill.yellow { background: var(--accent4); }
+    .sig-timer-fill.green { background: var(--accent3); }
+    .sig-timer-text { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); min-width: 32px; text-align: right; }
+
+    .sig-stats { display: flex; gap: 12px; }
+    .sig-stat { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
+    .sig-stat span:last-child { color: var(--text); font-size: 13px; }
+
+    .signal-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 18px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.1); }
+    .health-badge { font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 8px; border-radius: 10px; }
+    .health-badge.ok { background: rgba(0,255,136,0.08); color: var(--accent3); border: 1px solid rgba(0,255,136,0.15); }
+    .health-badge.warn { background: rgba(255,221,87,0.08); color: var(--accent4); border: 1px solid rgba(255,221,87,0.15); }
+    .health-badge.err { background: rgba(255,51,102,0.08); color: var(--danger); border: 1px solid rgba(255,51,102,0.15); }
+
+    /* Override toggle */
+    .override-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); cursor: pointer; }
+    .toggle-switch { width: 36px; height: 20px; background: var(--border2); border-radius: 10px; position: relative; transition: background 0.25s; cursor: pointer; flex-shrink: 0; }
+    .toggle-switch.on { background: rgba(255,221,87,0.6); }
+    .toggle-switch::after { content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: white; top: 3px; left: 3px; transition: transform 0.25s; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+    .toggle-switch.on::after { transform: translateX(16px); }
+    .override-label { font-family: 'DM Mono', monospace; font-size: 10px; }
+    .override-active { color: var(--accent4); }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    </div>
+    <div>
+      <div class="logo-text">FlowGrid</div>
+      <div class="logo-version">v3.4.1 · LIVE</div>
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item" href="home.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item" href="map.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+      Traffic Map
+    </a>
+    <a class="nav-item" href="window_4_incidents.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Incidents
+      <span class="nav-badge">7</span>
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Control</div>
+    <a class="nav-item active" href="window_5_signal_nodes.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      Signal Control
+      <span class="nav-badge yellow">5</span>
+    </a>
+    <a class="nav-item" href="window_3_field_units.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Field Units
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">Analytics</div>
+    <a class="nav-item" href="window_6_flow_chart.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Flow Analytics
+    </a>
+    <a class="nav-item" href="window_2_kpi_cards.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      KPI Analytics
+    </a>
+    <a class="nav-item" href="window_7_sensor_health.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Sensors
+      <span class="nav-badge green">OK</span>
+    </a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-label">System</div>
+    <a class="nav-item" href="window_1_login.html" style="color:var(--danger)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Logout
+    </a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="avatar">OP</div>
+      <div class="user-info">
+        <div class="user-name">Demo Operator</div>
+        <div class="user-role">ADMIN · ZONE A</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">Signal Control</div>
+    <span class="topbar-sub">/ Junction Management</span>
+    <div class="topbar-spacer"></div>
+    <div class="live-badge"><div class="live-dot"></div>142 SIGNALS ACTIVE</div>
+  </div>
+
+  <div class="content">
+    <div class="page-header">
+      <div class="page-title">Traffic Signal Management</div>
+      <div class="page-sub">REAL-TIME PHASE MONITORING · MANUAL OVERRIDE CONTROL · 142 NODES</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-chip">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(0,255,136,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ff88" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div><div class="stat-val" style="color:var(--accent3)">138</div><div class="stat-lbl">Operational</div></div>
+      </div>
+      <div class="stat-chip">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(255,221,87,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffdd57" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2"/></svg>
+        </div>
+        <div><div class="stat-val" style="color:var(--accent4)" id="overrideCount">0</div><div class="stat-lbl">Manual Override</div></div>
+      </div>
+      <div class="stat-chip">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(255,51,102,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff3366" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+        </div>
+        <div><div class="stat-val" style="color:var(--danger)">2</div><div class="stat-lbl">Offline / Fault</div></div>
+      </div>
+      <div class="stat-chip">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(0,212,255,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div><div class="stat-val" style="color:var(--accent)">68.4</div><div class="stat-lbl">Avg Flow km/h</div></div>
+      </div>
+    </div>
+
+    <!-- Signal Grid -->
+    <div class="signal-grid" id="signalGrid"></div>
+  </div>
+</div>
+
+<script>
+const SIGNALS = [
+  { id:'S-01', name:'Anna Salai Junction', zone:'A', volume:1240, queue:34, health:'ok', phase:'green', timing:{red:45,yellow:5,green:60}, uptime:'99.8%' },
+  { id:'S-07', name:'Guindy Interchange', zone:'B', volume:980, queue:18, health:'ok', phase:'red', timing:{red:45,yellow:5,green:55}, uptime:'99.2%' },
+  { id:'S-12', name:'OMR Junction Hub', zone:'F', volume:1640, queue:67, health:'warn', phase:'yellow', timing:{red:60,yellow:5,green:45}, uptime:'97.1%' },
+  { id:'S-19', name:'Velachery Central', zone:'C', volume:870, queue:12, health:'ok', phase:'green', timing:{red:40,yellow:5,green:50}, uptime:'99.9%' },
+  { id:'S-23', name:'Tambaram Flyover', zone:'D', volume:540, queue:8, health:'ok', phase:'red', timing:{red:35,yellow:5,green:45}, uptime:'100%' },
+  { id:'S-31', name:'Perungudi IT Park', zone:'F', volume:1120, queue:29, health:'ok', phase:'green', timing:{red:50,yellow:5,green:55}, uptime:'98.7%' },
+  { id:'S-44', name:'Adyar Bridge North', zone:'E', volume:760, queue:15, health:'ok', phase:'red', timing:{red:40,yellow:4,green:40}, uptime:'99.5%' },
+  { id:'S-09', name:'Koyambedu Hub', zone:'A', volume:1380, queue:52, health:'warn', phase:'green', timing:{red:55,yellow:5,green:65}, uptime:'96.4%' },
+];
+
+let overrideStates = {};
+let timerCounters = {};
+SIGNALS.forEach(s => {
+  overrideStates[s.id] = false;
+  // Start phase at different points
+  timerCounters[s.id] = {
+    phase: s.phase,
+    remaining: s.phase==='red' ? s.timing.red : (s.phase==='yellow' ? s.timing.yellow : s.timing.green),
+    total: s.phase==='red' ? s.timing.red : (s.phase==='yellow' ? s.timing.yellow : s.timing.green),
+  };
+});
+
+function nextPhase(sig) {
+  const t = timerCounters[sig.id];
+  if(t.phase === 'green') { t.phase = 'yellow'; t.remaining = sig.timing.yellow; t.total = sig.timing.yellow; }
+  else if(t.phase === 'yellow') { t.phase = 'red'; t.remaining = sig.timing.red; t.total = sig.timing.red; }
+  else { t.phase = 'green'; t.remaining = sig.timing.green; t.total = sig.timing.green; }
+}
+
+function renderGrid() {
+  document.getElementById('signalGrid').innerHTML = SIGNALS.map(sig => {
+    const t = timerCounters[sig.id];
+    const isOverride = overrideStates[sig.id];
+    const phaseName = t.phase.charAt(0).toUpperCase() + t.phase.slice(1);
+    const phaseClass = t.phase + '-phase';
+    const pct = Math.round((t.remaining / t.total) * 100);
+    return `
+    <div class="signal-card ${isOverride ? 'override' : ''}" id="card-${sig.id}">
+      <div class="signal-card-header">
+        <div>
+          <div class="signal-id">${sig.id} · ZONE ${sig.zone}</div>
+          <div class="signal-name">${sig.name}</div>
+          <div class="signal-zone">Vol: ${sig.volume.toLocaleString()}/hr · Queue: ${sig.queue} veh</div>
+        </div>
+        <span class="health-badge ${sig.health}">${sig.health === 'ok' ? '● HEALTHY' : '⚠ WARNING'}</span>
+      </div>
+      <div class="signal-body">
+        <div class="traffic-light">
+          <div class="tl-bulb red ${t.phase==='red'?'active':''}"></div>
+          <div class="tl-bulb yellow ${t.phase==='yellow'?'active':''}"></div>
+          <div class="tl-bulb green ${t.phase==='green'?'active':''}"></div>
+        </div>
+        <div class="signal-info">
+          <div class="sig-phase-label">CURRENT PHASE</div>
+          <div class="sig-phase-val ${phaseClass}">${phaseName} Phase</div>
+          <div class="sig-timer">
+            <div class="sig-timer-bar"><div class="sig-timer-fill ${t.phase}" style="width:${pct}%" id="fill-${sig.id}"></div></div>
+            <span class="sig-timer-text" id="timer-${sig.id}">${t.remaining}s</span>
+          </div>
+          <div class="sig-stats">
+            <div class="sig-stat"><span>RED</span><span>${sig.timing.red}s</span></div>
+            <div class="sig-stat"><span>YLW</span><span>${sig.timing.yellow}s</span></div>
+            <div class="sig-stat"><span>GRN</span><span>${sig.timing.green}s</span></div>
+            <div class="sig-stat"><span>UPTIME</span><span>${sig.uptime}</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="signal-footer">
+        <span class="health-badge ${sig.health === 'ok' ? 'ok' : 'warn'}">${sig.health === 'ok' ? 'Adaptive Mode' : 'Check Required'}</span>
+        <div class="override-toggle" onclick="toggleOverride('${sig.id}')">
+          <span class="override-label ${isOverride ? 'override-active' : ''}">${isOverride ? 'OVERRIDE ON' : 'OVERRIDE'}</span>
+          <div class="toggle-switch ${isOverride ? 'on' : ''}"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleOverride(id) {
+  overrideStates[id] = !overrideStates[id];
+  const count = Object.values(overrideStates).filter(Boolean).length;
+  document.getElementById('overrideCount').textContent = count;
+  renderGrid();
+}
+
+function updateTimers() {
+  SIGNALS.forEach(sig => {
+    if(overrideStates[sig.id]) return;
+    const t = timerCounters[sig.id];
+    t.remaining -= 1;
+    if(t.remaining <= 0) {
+      nextPhase(sig);
+    }
+    // Update DOM directly without full re-render
+    const timerEl = document.getElementById('timer-' + sig.id);
+    const fillEl = document.getElementById('fill-' + sig.id);
+    if(timerEl) timerEl.textContent = t.remaining + 's';
+    if(fillEl) {
+      const pct = Math.round((t.remaining / t.total) * 100);
+      fillEl.style.width = pct + '%';
+      // If phase changed, do full re-render
+    }
+  });
+  // Check if any phase changed (remaining hit 0)
+  const needsRedraw = SIGNALS.some(s => timerCounters[s.id].remaining <= 1);
+  if(needsRedraw) renderGrid();
+}
+
+renderGrid();
+setInterval(updateTimers, 1000);
+</script>
+</body>
+</html>
