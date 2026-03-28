@@ -8,15 +8,17 @@ No backend, no build step — just open and run.
 
 ## Pages
 
-index.html       Login screen. Demo: admin / traffic123
-home.html                 Main dashboard — KPIs, live map, incident feed
-map.html                  Full-screen Leaflet world map with city search
-window_2_kpi_cards.html   KPI deep-dive, zone charts, 7-day trend
-window_3_field_units.html Field unit tracking
-window_4_incidents.html   Incident list with filter, acknowledge, resolve
-window_5_signal_nodes.html  Per-junction signal status
-window_6_flow_chart.html  Hourly throughput bar charts
-window_7_sensor_health.html Sensor status with ring chart
+| File | Description |
+|------|-------------|
+| `index.html` | Login screen. Demo: `admin` / `traffic123` |
+| `home.html` | Main dashboard — KPIs, live map, incident feed |
+| `map.html` | Full-screen Leaflet world map with city search |
+| `window_2_kpi_cards.html` | KPI deep-dive, zone charts, 7-day trend |
+| `window_3_field_units.html` | Field unit tracking |
+| `window_4_incidents.html` | Incident list with filter, acknowledge, resolve |
+| `window_5_signal_nodes.html` | Per-junction signal status |
+| `window_6_flow_chart.html` | Hourly throughput bar charts |
+| `window_7_sensor_health.html` | Sensor status with ring chart |
 
 ---
 
