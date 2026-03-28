@@ -8,7 +8,7 @@ No backend, no build step — just open and run.
 
 ## Pages
 
-window_1_login.html       Login screen. Demo: admin / traffic123
+index.html       Login screen. Demo: admin / traffic123
 home.html                 Main dashboard — KPIs, live map, incident feed
 map.html                  Full-screen Leaflet world map with city search
 window_2_kpi_cards.html   KPI deep-dive, zone charts, 7-day trend
@@ -22,7 +22,7 @@ window_7_sensor_health.html Sensor status with ring chart
 
 ## Running It
 
-Just open window_1_login.html in any browser.
+Just open index.html in any browser.
 Navigate between pages using the sidebar.
 
 ---
@@ -45,3 +45,8 @@ Username : admin
 Password : traffic123
 
 Or hit "Enter with Demo Credentials" on the login page.
+
+---
+
+## Deployment Link
+Vercel Deployed link: https://flow-grid-three.vercel.app/
